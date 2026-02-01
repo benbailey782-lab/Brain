@@ -12,6 +12,7 @@ import { v4 as uuidv4 } from 'uuid';
 
 import * as queries from '../db/queries.js';
 import { getAIStatus, processTranscript, getCallAI } from '../processing/processor.js';
+import { extractPdfText, extractDocxText } from '../ingestion/extractors.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -41,7 +42,7 @@ const upload = multer({
     fileSize: 10 * 1024 * 1024 // 10MB max
   },
   fileFilter: (req, file, cb) => {
-    const allowedExtensions = ['.pdf', '.docx', '.txt', '.md', '.json', '.csv'];
+    const allowedExtensions = ['.pdf', '.docx', '.txt', '.md', '.json', '.csv', '.srt'];
     const ext = path.extname(file.originalname).toLowerCase();
 
     if (allowedExtensions.includes(ext)) {
@@ -51,35 +52,6 @@ const upload = multer({
     }
   }
 });
-
-/**
- * Extract text from PDF file
- */
-async function extractPdfText(filePath) {
-  try {
-    const pdfParse = (await import('pdf-parse')).default;
-    const dataBuffer = fs.readFileSync(filePath);
-    const data = await pdfParse(dataBuffer);
-    return data.text;
-  } catch (err) {
-    console.error('PDF extraction error:', err.message);
-    throw new Error(`Failed to extract text from PDF: ${err.message}`);
-  }
-}
-
-/**
- * Extract text from DOCX file
- */
-async function extractDocxText(filePath) {
-  try {
-    const mammoth = (await import('mammoth')).default;
-    const result = await mammoth.extractRawText({ path: filePath });
-    return result.value;
-  } catch (err) {
-    console.error('DOCX extraction error:', err.message);
-    throw new Error(`Failed to extract text from DOCX: ${err.message}`);
-  }
-}
 
 /**
  * Extract text based on file type
@@ -103,6 +75,8 @@ async function extractText(filePath, originalName) {
       if (jsonContent.transcript) return jsonContent.transcript;
       return JSON.stringify(jsonContent, null, 2);
     case '.csv':
+      return fs.readFileSync(filePath, 'utf-8');
+    case '.srt':
       return fs.readFileSync(filePath, 'utf-8');
     default:
       throw new Error(`Unsupported file type: ${ext}`);

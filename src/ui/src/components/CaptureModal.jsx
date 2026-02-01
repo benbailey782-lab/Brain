@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Plus,
@@ -9,14 +9,18 @@ import {
   FileUp,
   Loader2,
   Check,
-  AlertCircle
+  AlertCircle,
+  Mic,
+  MicOff,
+  Square,
+  Pencil
 } from 'lucide-react';
 
 /**
  * CaptureModal - Floating action button with multi-input capture modal
- * Phase 3: Track D
+ * Phase 4.2: Added Voice Memo tab
  */
-export default function CaptureModal() {
+export default function CaptureModal({ activeView }) {
   const [isOpen, setIsOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('upload');
   const [uploading, setUploading] = useState(false);
@@ -35,6 +39,23 @@ export default function CaptureModal() {
   const [pasteContent, setPasteContent] = useState('');
   const [pasteFilename, setPasteFilename] = useState('');
 
+  // Voice memo state
+  const [isRecording, setIsRecording] = useState(false);
+  const [voiceTranscript, setVoiceTranscript] = useState('');
+  const [voiceTimer, setVoiceTimer] = useState(0);
+  const [voiceError, setVoiceError] = useState(null);
+  const [speechSupported, setSpeechSupported] = useState(true);
+  const recognitionRef = useRef(null);
+  const timerRef = useRef(null);
+
+  // Check speech support on mount
+  useEffect(() => {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      setSpeechSupported(false);
+    }
+  }, []);
+
   const resetState = () => {
     setUploading(false);
     setUploadResult(null);
@@ -45,6 +66,13 @@ export default function CaptureModal() {
     setNoteContext('Sales Call Notes');
     setPasteContent('');
     setPasteFilename('');
+    setVoiceTranscript('');
+    setVoiceTimer(0);
+    setVoiceError(null);
+    if (recognitionRef.current) {
+      try { recognitionRef.current.stop(); } catch(e) {}
+    }
+    clearInterval(timerRef.current);
   };
 
   const handleClose = () => {
@@ -166,26 +194,135 @@ export default function CaptureModal() {
     }
   };
 
+  // Voice recording functions
+  const startRecording = useCallback(() => {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      setVoiceError('Speech recognition not supported');
+      return;
+    }
+
+    const recognition = new SpeechRecognition();
+    recognition.continuous = true;
+    recognition.interimResults = false;
+    recognition.lang = 'en-US';
+    recognition.maxAlternatives = 1;
+
+    let fullTranscript = '';
+
+    recognition.onresult = (event) => {
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        if (event.results[i].isFinal) {
+          fullTranscript += event.results[i][0].transcript + ' ';
+        }
+      }
+    };
+
+    recognition.onerror = (event) => {
+      console.error('Speech recognition error:', event.error);
+      if (event.error === 'no-speech') {
+        setVoiceError('No speech detected. Please try again.');
+      } else if (event.error === 'audio-capture') {
+        setVoiceError('No microphone found. Check your audio settings.');
+      } else if (event.error === 'not-allowed') {
+        setVoiceError('Microphone access denied. Allow mic access in system settings.');
+      } else {
+        setVoiceError(`Recognition error: ${event.error}`);
+      }
+      stopRecording();
+    };
+
+    recognition.onend = () => {
+      // Web Speech API can auto-stop (e.g., after extended silence).
+      // Save whatever we collected.
+      setVoiceTranscript(fullTranscript.trim());
+      setIsRecording(false);
+      clearInterval(timerRef.current);
+    };
+
+    recognitionRef.current = recognition;
+    recognition.start();
+    setIsRecording(true);
+    setVoiceTranscript('');
+    setVoiceError(null);
+    setVoiceTimer(0);
+
+    // Start counting timer
+    timerRef.current = setInterval(() => {
+      setVoiceTimer(prev => {
+        if (prev >= 299) {
+          stopRecording();
+          return prev;
+        }
+        return prev + 1;
+      });
+    }, 1000);
+  }, []);
+
+  const stopRecording = useCallback(() => {
+    if (recognitionRef.current) {
+      recognitionRef.current.stop();
+      // onend handler will fire and set transcript + isRecording
+    }
+    clearInterval(timerRef.current);
+  }, []);
+
+  const handleVoiceMemoSubmit = async () => {
+    if (!voiceTranscript.trim()) return;
+
+    setUploading(true);
+    setError(null);
+
+    try {
+      const response = await fetch('/api/notes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: `Voice Memo - ${new Date().toLocaleString()}`,
+          content: voiceTranscript.trim(),
+          context: 'Voice Memo'
+        })
+      });
+
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Failed to save voice memo');
+      setUploadResult(data);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const formatTimer = (seconds) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+  };
+
   const tabs = [
     { id: 'upload', label: 'Upload File', icon: Upload },
+    { id: 'voice', label: 'Voice Memo', icon: Mic },
     { id: 'note', label: 'Quick Note', icon: FileText },
     { id: 'paste', label: 'Paste Transcript', icon: ClipboardPaste }
   ];
 
   return (
     <>
-      {/* FAB Button */}
-      <motion.button
-        onClick={() => setIsOpen(true)}
-        className="fixed bottom-6 right-6 z-40 w-14 h-14 rounded-full animated-gradient text-white shadow-lg flex items-center justify-center"
-        whileHover={{ scale: 1.1 }}
-        whileTap={{ scale: 0.95 }}
-        initial={{ scale: 0 }}
-        animate={{ scale: 1 }}
-        transition={{ type: 'spring', stiffness: 300, damping: 25 }}
-      >
-        <Plus className="w-6 h-6" />
-      </motion.button>
+      {/* FAB Button - hidden on Ask view */}
+      {activeView !== 'ask' && (
+        <motion.button
+          onClick={() => setIsOpen(true)}
+          className="fixed bottom-6 right-6 z-40 w-14 h-14 rounded-full animated-gradient text-white shadow-lg flex items-center justify-center"
+          whileHover={{ scale: 1.1 }}
+          whileTap={{ scale: 0.95 }}
+          initial={{ scale: 0 }}
+          animate={{ scale: 1 }}
+          transition={{ type: 'spring', stiffness: 300, damping: 25 }}
+        >
+          <Plus className="w-6 h-6" />
+        </motion.button>
+      )}
 
       {/* Modal */}
       <AnimatePresence>
@@ -244,7 +381,7 @@ export default function CaptureModal() {
                     )}
                     <button
                       onClick={handleClose}
-                      className="mt-6 px-6 py-2 rounded-xl bg-brain-500 hover:bg-brain-600 text-white transition-colors"
+                      className="mt-6 px-6 py-2 rounded-xl bg-prism-500 hover:bg-prism-600 text-white transition-colors"
                     >
                       Done
                     </button>
@@ -318,22 +455,118 @@ export default function CaptureModal() {
                               Drop files here or click to upload
                             </h3>
                             <p className="text-sm text-zinc-500 mb-4">
-                              Supports PDF, DOCX, TXT, MD files up to 10MB
+                              Supports PDF, DOCX, TXT, SRT, MD files up to 10MB
                             </p>
                             <input
                               type="file"
-                              accept=".pdf,.docx,.txt,.md,.json,.csv"
+                              accept=".pdf,.docx,.txt,.md,.json,.csv,.srt"
                               onChange={(e) => handleFileUpload(e.target.files[0])}
                               className="hidden"
                               id="file-upload"
                             />
                             <label
                               htmlFor="file-upload"
-                              className="inline-block px-6 py-2 rounded-xl bg-brain-500 hover:bg-brain-600 text-white cursor-pointer transition-colors"
+                              className="inline-block px-6 py-2 rounded-xl bg-prism-500 hover:bg-prism-600 text-white cursor-pointer transition-colors"
                             >
                               Choose File
                             </label>
                           </>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Voice Memo Tab */}
+                    {activeTab === 'voice' && (
+                      <div className="space-y-4">
+                        {!speechSupported ? (
+                          /* Unsupported browser fallback */
+                          <div className="text-center py-8">
+                            <MicOff className="w-12 h-12 text-zinc-500 mx-auto mb-4" />
+                            <p className="text-zinc-400">Speech recognition is not available</p>
+                            <p className="text-xs text-zinc-500 mt-2">Try using the Quick Note tab instead</p>
+                          </div>
+                        ) : !voiceTranscript && !isRecording ? (
+                          /* Ready state — large mic button */
+                          <div className="text-center py-8">
+                            <motion.button
+                              onClick={startRecording}
+                              whileHover={{ scale: 1.05 }}
+                              whileTap={{ scale: 0.95 }}
+                              className="w-24 h-24 rounded-full bg-prism-500/10 border-2 border-prism-500/30 mx-auto mb-4 flex items-center justify-center hover:bg-prism-500/20 transition-colors"
+                            >
+                              <Mic className="w-10 h-10 text-prism-blue" />
+                            </motion.button>
+                            <p className="text-zinc-300 font-medium">Tap to start recording</p>
+                            <p className="text-xs text-zinc-500 mt-2">
+                              Up to 5 minutes - Audio is not saved, only the transcript
+                            </p>
+                            {voiceError && (
+                              <div className="mt-4 p-3 rounded-xl bg-red-500/10 border border-red-500/20">
+                                <p className="text-sm text-red-400">{voiceError}</p>
+                              </div>
+                            )}
+                          </div>
+                        ) : isRecording ? (
+                          /* Recording state — pulsing stop button + timer */
+                          <div className="text-center py-8">
+                            <motion.button
+                              onClick={stopRecording}
+                              whileHover={{ scale: 1.05 }}
+                              whileTap={{ scale: 0.95 }}
+                              className="w-24 h-24 rounded-full bg-red-500/20 border-2 border-red-500/40 mx-auto mb-4 flex items-center justify-center"
+                            >
+                              <motion.div
+                                animate={{ scale: [1, 1.1, 1] }}
+                                transition={{ duration: 1.5, repeat: Infinity }}
+                              >
+                                <Square className="w-8 h-8 text-red-400 fill-red-400" />
+                              </motion.div>
+                            </motion.button>
+                            <p className="text-red-400 font-medium">Recording...</p>
+                            <p className="text-2xl font-mono text-white mt-2">
+                              {formatTimer(voiceTimer)}
+                            </p>
+                            <p className="text-xs text-zinc-500 mt-2">Tap the square to stop</p>
+                          </div>
+                        ) : (
+                          /* Review/edit state — editable transcript */
+                          <div className="space-y-4">
+                            <div className="flex items-center gap-2 text-sm text-zinc-400">
+                              <Pencil className="w-3.5 h-3.5" />
+                              <span>Review and edit your transcript before saving</span>
+                            </div>
+                            <textarea
+                              value={voiceTranscript}
+                              onChange={(e) => setVoiceTranscript(e.target.value)}
+                              rows={8}
+                              className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder-zinc-500 focus:border-prism-blue focus:outline-none transition-colors resize-none"
+                            />
+                            <div className="flex gap-3">
+                              <button
+                                onClick={() => {
+                                  setVoiceTranscript('');
+                                  setVoiceTimer(0);
+                                }}
+                                className="flex-1 px-4 py-3 rounded-xl text-zinc-400 hover:text-white hover:bg-white/5 transition-colors"
+                              >
+                                Re-record
+                              </button>
+                              <button
+                                onClick={handleVoiceMemoSubmit}
+                                disabled={!voiceTranscript.trim() || uploading}
+                                className="flex-1 px-6 py-3 rounded-xl bg-prism-500 hover:bg-prism-600 disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium transition-colors flex items-center justify-center gap-2"
+                              >
+                                {uploading ? (
+                                  <>
+                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                    Saving...
+                                  </>
+                                ) : (
+                                  'Save Voice Memo'
+                                )}
+                              </button>
+                            </div>
+                          </div>
                         )}
                       </div>
                     )}
@@ -378,7 +611,7 @@ export default function CaptureModal() {
                         <button
                           onClick={handleNoteSubmit}
                           disabled={!noteContent.trim() || uploading}
-                          className="w-full px-6 py-3 rounded-xl bg-brain-500 hover:bg-brain-600 disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium transition-colors flex items-center justify-center gap-2"
+                          className="w-full px-6 py-3 rounded-xl bg-prism-500 hover:bg-prism-600 disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium transition-colors flex items-center justify-center gap-2"
                         >
                           {uploading ? (
                             <>
@@ -418,7 +651,7 @@ export default function CaptureModal() {
                         <button
                           onClick={handlePasteSubmit}
                           disabled={!pasteContent.trim() || uploading}
-                          className="w-full px-6 py-3 rounded-xl bg-brain-500 hover:bg-brain-600 disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium transition-colors flex items-center justify-center gap-2"
+                          className="w-full px-6 py-3 rounded-xl bg-prism-500 hover:bg-prism-600 disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium transition-colors flex items-center justify-center gap-2"
                         >
                           {uploading ? (
                             <>

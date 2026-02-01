@@ -4,8 +4,9 @@ import fs from 'fs';
 import { parseTranscript, parseFilenameMetadata } from './parser.js';
 import { createTranscript, transcriptExists } from '../db/queries.js';
 import { processTranscript } from '../processing/processor.js';
+import { extractPdfText, extractDocxText } from './extractors.js';
 
-const SUPPORTED_EXTENSIONS = ['.txt', '.md', '.json'];
+const SUPPORTED_EXTENSIONS = ['.txt', '.md', '.json', '.srt', '.pdf', '.docx'];
 
 // Files to ignore (especially for Google Drive sync)
 const IGNORED_PATTERNS = [
@@ -77,6 +78,53 @@ export function startWatcher(watchFolder, options = {}) {
 
     console.log(`New transcript detected: ${filepath}`);
 
+    // PDF/DOCX: extract text via dedicated extractors, skip parseTranscript
+    if (ext === '.pdf' || ext === '.docx') {
+      try {
+        let extractedText;
+        if (ext === '.pdf') {
+          extractedText = await extractPdfText(filepath);
+        } else {
+          extractedText = await extractDocxText(filepath);
+        }
+
+        if (!extractedText || extractedText.trim().length === 0) {
+          console.log(`Empty content from ${filepath}, skipping`);
+          return;
+        }
+
+        const filename = path.basename(filepath);
+        const filenameMeta = parseFilenameMetadata(filename);
+
+        const transcriptId = createTranscript({
+          filename,
+          filepath,
+          rawContent: extractedText,
+          durationMinutes: null,
+          callDate: filenameMeta.date || new Date().toISOString(),
+          context: filenameMeta.callType || `Watched file: ${filename}`
+        });
+
+        console.log(`PDF/DOCX transcript saved: ${transcriptId}`);
+
+        if (processImmediately) {
+          processTranscript(transcriptId).catch(err => {
+            console.error(`Processing failed for ${transcriptId}:`, err.message);
+          });
+        }
+
+        if (onNewFile) {
+          onNewFile({ transcriptId, filepath });
+        }
+        return; // Done — skip the parseTranscript path below
+      } catch (err) {
+        console.error(`Text extraction failed for ${filepath}:`, err.message);
+        if (onError) onError(err, filepath);
+        return;
+      }
+    }
+
+    // Existing parseTranscript path for txt/md/json/srt
     try {
       // Parse the file
       const parsed = parseTranscript(filepath);

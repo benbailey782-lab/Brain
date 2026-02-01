@@ -18,7 +18,7 @@ const RELATIONSHIP_TYPES = [
 ];
 
 const RELATIONSHIP_COLORS = {
-  prospect: 'bg-amber-500/20 text-amber-400',
+  prospect: 'bg-prism-lavender/20 text-prism-lavender',
   customer: 'bg-prism-blue/20 text-prism-blue',
   colleague: 'bg-blue-500/20 text-blue-400',
   mentor: 'bg-purple-500/20 text-purple-400',

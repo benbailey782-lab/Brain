@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import {
   ArrowLeft, User, Building, Mail, Phone, Briefcase,
   MessageSquare, FileText, Target, Calendar, Edit2,
-  Save, X, AlertCircle, Plus, ChevronRight, Brain,
+  Save, X, AlertCircle, Plus, ChevronRight,
   RefreshCw, Sparkles, MessageCircle, Lightbulb
 } from 'lucide-react';
 
@@ -96,7 +96,7 @@ function PersonAIBrief({ personId }) {
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-prism-blue/20 to-prism-400/20 flex items-center justify-center glow-prism-subtle">
-              <Brain className="w-5 h-5 text-prism-blue" />
+              <Sparkles className="w-5 h-5 text-prism-blue" />
             </div>
             <div>
               <h3 className="font-medium text-white">AI Brief</h3>
@@ -126,7 +126,7 @@ function PersonAIBrief({ personId }) {
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-prism-blue/20 to-prism-400/20 flex items-center justify-center glow-prism-subtle">
-            <Brain className="w-5 h-5 text-prism-blue" />
+            <Sparkles className="w-5 h-5 text-prism-blue" />
           </div>
           <div>
             <h3 className="font-medium text-white">AI Brief</h3>

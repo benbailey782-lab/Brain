@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Send, User, Loader2, Sparkles, MessageSquare,
+  Send, User, Loader2, Sparkles, MessageSquare, Mic,
   FileText, Target, Users, Lightbulb, AlertCircle, History,
   ThumbsUp, ThumbsDown, ExternalLink, ChevronRight, X, RefreshCw
 } from 'lucide-react';
@@ -49,8 +49,10 @@ export default function AskPanel() {
   const [history, setHistory] = useState([]);
   const [showHistory, setShowHistory] = useState(false);
   const [suggestions, setSuggestions] = useState(DEFAULT_SUGGESTIONS);
+  const [isListening, setIsListening] = useState(false);
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
+  const askRecognitionRef = useRef(null);
 
   // Scroll to bottom on new messages
   useEffect(() => {
@@ -214,6 +216,42 @@ export default function AskPanel() {
     setError(null);
   };
 
+  const toggleVoiceInput = useCallback(() => {
+    if (isListening) {
+      if (askRecognitionRef.current) {
+        askRecognitionRef.current.stop();
+      }
+      setIsListening(false);
+      return;
+    }
+
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) return;
+
+    const recognition = new SpeechRecognition();
+    recognition.continuous = false; // Single utterance — this is a query, not a memo
+    recognition.interimResults = false;
+    recognition.lang = 'en-US';
+
+    recognition.onresult = (event) => {
+      const transcript = event.results[0][0].transcript;
+      setQuery(prev => prev ? prev + ' ' + transcript : transcript);
+    };
+
+    recognition.onend = () => {
+      setIsListening(false);
+    };
+
+    recognition.onerror = (event) => {
+      console.error('Voice input error:', event.error);
+      setIsListening(false);
+    };
+
+    askRecognitionRef.current = recognition;
+    recognition.start();
+    setIsListening(true);
+  }, [isListening]);
+
   return (
     <div className="flex flex-col h-[calc(100vh-8rem)]">
       {/* Header */}
@@ -356,10 +394,35 @@ export default function AskPanel() {
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Ask a question about your sales data..."
+            placeholder={isListening ? "Listening..." : "Ask a question about your sales data..."}
             className="flex-1 bg-transparent px-3 py-2 text-zinc-200 placeholder-zinc-500 focus:outline-none"
             disabled={loading}
           />
+          {/* Mic button */}
+          <motion.button
+            type="button"
+            onClick={toggleVoiceInput}
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            className={`p-2.5 rounded-xl transition-colors ${
+              isListening
+                ? 'bg-red-500/20 text-red-400'
+                : 'text-zinc-400 hover:text-zinc-200 hover:bg-white/5'
+            }`}
+            disabled={loading}
+          >
+            {isListening ? (
+              <motion.div
+                animate={{ scale: [1, 1.15, 1] }}
+                transition={{ duration: 1, repeat: Infinity }}
+              >
+                <Mic className="w-5 h-5" />
+              </motion.div>
+            ) : (
+              <Mic className="w-5 h-5" />
+            )}
+          </motion.button>
+          {/* Send button */}
           <motion.button
             type="submit"
             disabled={!query.trim() || loading}
@@ -393,20 +456,22 @@ function EmptyState({ suggestions, onSuggestionClick }) {
     >
       {/* Hero icon with glow */}
       <div className="relative mb-6">
-        <div className="absolute inset-0 blur-3xl bg-prism-500/20 rounded-full" />
+        {/* Glow layer — blurred, pulsing duplicate of logo colors */}
         <motion.div
           animate={{
-            boxShadow: [
-              '0 0 30px rgba(96, 120, 200, 0.3)',
-              '0 0 60px rgba(96, 120, 200, 0.4)',
-              '0 0 30px rgba(96, 120, 200, 0.3)'
-            ]
+            opacity: [0.4, 0.7, 0.4],
+            scale: [1, 1.15, 1],
           }}
           transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
-          className="relative w-20 h-20 rounded-2xl bg-[#09090b] border border-white/10 flex items-center justify-center"
-        >
-          <PrismLogo className="w-12 h-8" />
-        </motion.div>
+          className="absolute inset-0 blur-2xl"
+          style={{
+            background: 'radial-gradient(ellipse at center, rgba(74, 168, 216, 0.3) 0%, rgba(96, 120, 200, 0.2) 40%, rgba(152, 120, 192, 0.1) 70%, transparent 100%)'
+          }}
+        />
+        {/* Actual logo — crisp, not blurred */}
+        <div className="relative w-20 h-20 flex items-center justify-center">
+          <PrismLogo className="w-14 h-10" />
+        </div>
       </div>
 
       <h2 className="text-lg font-medium text-white mb-2">
@@ -621,7 +686,7 @@ function SourceBadge({ source, isExpanded, onToggle }) {
   const typeColors = {
     segment: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
     deal: 'bg-prism-500/10 text-prism-400 border-prism-500/20',
-    person: 'bg-amber-500/10 text-amber-400 border-amber-500/20',
+    person: 'bg-prism-lavender/10 text-prism-lavender border-prism-lavender/20',
     transcript: 'bg-purple-500/10 text-purple-400 border-purple-500/20',
     stats: 'bg-zinc-500/10 text-zinc-400 border-zinc-500/20'
   };

@@ -12,13 +12,15 @@ const assetsDir = path.join(__dirname, '..', 'assets');
 const svgPath = path.join(assetsDir, 'icon.svg');
 const svgContent = fs.readFileSync(svgPath, 'utf-8');
 
-// The SVG ellipses have opacity="0.6", so they need a dark background
-// to render correctly. Create a composed image.
-const BG_COLOR = { r: 9, g: 9, b: 11, alpha: 1 }; // #09090b
+// Transparent background for proper alpha blending
+const BG_COLOR = { r: 0, g: 0, b: 0, alpha: 0 };
 
 async function generate() {
+  // Boost ellipse opacity from 0.6 to 0.85 for vibrancy on transparent backgrounds
+  const enhancedSvg = svgContent.replace(/opacity="0\.6"/g, 'opacity="0.85"');
+
   // First, render the SVG at proper size (scale up from 280x199 to fit 432x308)
-  const svgBuffer = await sharp(Buffer.from(svgContent))
+  const svgBuffer = await sharp(Buffer.from(enhancedSvg))
     .resize(432, 308, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } })
     .png()
     .toBuffer();

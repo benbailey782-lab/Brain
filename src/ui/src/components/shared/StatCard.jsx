@@ -38,6 +38,12 @@ export default function StatCard({
       text: 'text-amber-400',
       icon: 'text-amber-400'
     },
+    prism: {
+      bg: 'bg-prism-500/10',
+      glow: 'glow-prism',
+      text: 'text-prism-blue',
+      icon: 'text-prism-blue'
+    },
     red: {
       bg: 'bg-red-500/10',
       glow: 'glow-red',
@@ -106,6 +112,7 @@ export function StatCardCompact({
     blue: { bg: 'bg-blue-500/10', icon: 'text-blue-400' },
     purple: { bg: 'bg-purple-500/10', icon: 'text-purple-400' },
     amber: { bg: 'bg-amber-500/10', icon: 'text-amber-400' },
+    prism: { bg: 'bg-prism-500/10', icon: 'text-prism-blue' },
     red: { bg: 'bg-red-500/10', icon: 'text-red-400' },
     zinc: { bg: 'bg-zinc-500/10', icon: 'text-zinc-400' }
   };
@@ -147,6 +154,7 @@ export function StatBadge({ value, label, color = 'green', className = '' }) {
     blue: 'bg-blue-500/10 text-blue-400',
     purple: 'bg-purple-500/10 text-purple-400',
     amber: 'bg-amber-500/10 text-amber-400',
+    prism: 'bg-prism-500/10 text-prism-blue',
     red: 'bg-red-500/10 text-red-400',
     zinc: 'bg-zinc-500/10 text-zinc-400'
   };

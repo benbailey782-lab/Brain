@@ -165,8 +165,8 @@ function DealCard({ deal, onClick, index = 0 }) {
     >
       <div className="flex items-start justify-between">
         <div className="flex items-start gap-3">
-          <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20">
-            <Building className="w-5 h-5 text-amber-400" />
+          <div className="p-2.5 rounded-xl bg-prism-500/10 border border-prism-500/20">
+            <Building className="w-5 h-5 text-prism-400" />
           </div>
           <div>
             <h3 className="font-medium text-white">{deal.company_name}</h3>

@@ -2,9 +2,9 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   ChevronRight,
   MessageSquare,
-  Lightbulb,
+  Sparkles,
   Target,
-  DollarSign,
+  Briefcase,
   Users,
   BookOpen,
   FileText,
@@ -42,15 +42,15 @@ const SECTIONS = {
 };
 
 const NAV_ITEMS = [
-  { id: 'ask', label: 'Ask', icon: MessageSquare, section: 'main' },
-  { id: 'insights', label: 'Insights', icon: Lightbulb, section: 'main' },
-  { id: 'prospects', label: 'Prospects', icon: Target, section: 'pipeline' },
-  { id: 'deals', label: 'Deals', icon: DollarSign, section: 'pipeline' },
-  { id: 'people', label: 'People', icon: Users, section: 'data' },
-  { id: 'knowledge', label: 'Knowledge', icon: BookOpen, section: 'data' },
-  { id: 'transcripts', label: 'Transcripts', icon: FileText, section: 'data' },
-  { id: 'stats', label: 'Stats', icon: BarChart3, section: 'data' },
-  { id: 'settings', label: 'Settings', icon: Settings, section: 'data' },
+  { id: 'ask',         label: 'Ask',         icon: MessageSquare, section: 'main',     color: '#4AA8D8' },
+  { id: 'insights',    label: 'Insights',    icon: Sparkles,      section: 'main',     color: '#6078C8' },
+  { id: 'prospects',   label: 'Prospects',   icon: Target,        section: 'pipeline', color: '#7B8EC8' },
+  { id: 'deals',       label: 'Deals',       icon: Briefcase,     section: 'pipeline', color: '#6078C8' },
+  { id: 'people',      label: 'People',      icon: Users,         section: 'data',     color: '#9878C0' },
+  { id: 'knowledge',   label: 'Knowledge',   icon: BookOpen,      section: 'data',     color: '#7B8EC8' },
+  { id: 'transcripts', label: 'Transcripts', icon: FileText,      section: 'data',     color: '#4AA8D8' },
+  { id: 'stats',       label: 'Stats',       icon: BarChart3,     section: 'data',     color: '#9890C8' },
+  { id: 'settings',    label: 'Settings',    icon: Settings,      section: 'data',     color: '#C888B0' },
 ];
 
 export default function Sidebar({ activeView, onNavigate, collapsed, onToggleCollapse, health }) {
@@ -77,7 +77,7 @@ export default function Sidebar({ activeView, onNavigate, collapsed, onToggleCol
       {/* Logo */}
       <div className="p-4 border-b border-white/5">
         <div className="flex items-center gap-3">
-          <div className="w-11 h-11 rounded-xl bg-[#09090b] flex items-center justify-center flex-shrink-0 shadow-lg border border-white/5">
+          <div className="w-11 h-11 rounded-xl bg-white/[0.03] flex items-center justify-center flex-shrink-0 border border-white/5">
             <PrismLogo className="w-7 h-5" />
           </div>
           <AnimatePresence mode="wait">
@@ -129,13 +129,12 @@ export default function Sidebar({ activeView, onNavigate, collapsed, onToggleCol
                     className={`
                       w-full flex items-center gap-3 px-3 py-2.5 rounded-xl
                       transition-all duration-200 text-sm font-medium relative
-                      ${isActive
-                        ? 'text-prism-blue'
-                        : 'text-zinc-400 hover:text-zinc-200'}
+                      ${isActive ? '' : 'text-zinc-400 hover:text-zinc-200'}
                     `}
                     style={isActive ? {
-                      background: 'var(--glow-prism)',
-                      boxShadow: 'inset 0 0 20px rgba(96, 120, 200, 0.1)'
+                      color: item.color,
+                      background: `${item.color}10`,
+                      boxShadow: `inset 0 0 20px ${item.color}08`
                     } : undefined}
                     title={collapsed ? item.label : undefined}
                   >
@@ -143,14 +142,13 @@ export default function Sidebar({ activeView, onNavigate, collapsed, onToggleCol
                     {isActive && (
                       <motion.div
                         layoutId="activeIndicator"
-                        className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-6 bg-prism-blue rounded-r-full"
+                        className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-6 rounded-r-full"
+                        style={{ backgroundColor: item.color }}
                         transition={{ type: 'spring', stiffness: 300, damping: 30 }}
                       />
                     )}
 
-                    <item.icon className={`w-5 h-5 flex-shrink-0 ${
-                      isActive ? 'text-prism-blue' : ''
-                    }`} />
+                    <item.icon className="w-5 h-5 flex-shrink-0" />
 
                     <AnimatePresence mode="wait">
                       {!collapsed && (

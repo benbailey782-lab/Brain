@@ -10,8 +10,8 @@ const KNOWLEDGE_TYPES = [
   { id: 'product_knowledge', label: 'Product', icon: Package, color: 'blue' },
   { id: 'process_knowledge', label: 'Process', icon: Settings, color: 'purple' },
   { id: 'people_context', label: 'People', icon: Users, color: 'green' },
-  { id: 'sales_insight', label: 'Sales Insight', icon: Target, color: 'amber' },
-  { id: 'advice_received', label: 'Advice', icon: Lightbulb, color: 'yellow' },
+  { id: 'sales_insight', label: 'Sales Insight', icon: Target, color: 'prism' },
+  { id: 'advice_received', label: 'Advice', icon: Lightbulb, color: 'lavender' },
   { id: 'decision_rationale', label: 'Decisions', icon: HelpCircle, color: 'indigo' },
   { id: 'competitive_intel', label: 'Competitive', icon: Target, color: 'red' },
   { id: 'small_talk', label: 'Small Talk', icon: Coffee, color: 'zinc' },
@@ -27,6 +27,8 @@ const colorClasses = {
   indigo: 'bg-indigo-500/20 text-indigo-400 border-indigo-500/30',
   red: 'bg-red-500/20 text-red-400 border-red-500/30',
   zinc: 'bg-zinc-500/20 text-zinc-400 border-zinc-500/30',
+  prism: 'bg-prism-500/20 text-prism-blue border-prism-500/30',
+  lavender: 'bg-prism-lavender/20 text-prism-lavender border-prism-lavender/30',
 };
 
 function SegmentCard({ segment }) {

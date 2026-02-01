@@ -147,7 +147,7 @@ export function ConfirmModal({
   variant = 'default'
 }) {
   const confirmButtonClasses = {
-    default: 'bg-brain-500 hover:bg-brain-600',
+    default: 'bg-prism-500 hover:bg-prism-600',
     danger: 'bg-red-500 hover:bg-red-600'
   };
 
@@ -191,7 +191,7 @@ export function AlertModal({
       <div className="flex justify-end">
         <button
           onClick={onClose}
-          className="px-4 py-2 rounded-xl bg-brain-500 hover:bg-brain-600 text-white transition-colors"
+          className="px-4 py-2 rounded-xl bg-prism-500 hover:bg-prism-600 text-white transition-colors"
         >
           {buttonText}
         </button>

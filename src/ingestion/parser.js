@@ -3,13 +3,13 @@ import path from 'path';
 
 /**
  * Parse a transcript file and extract content + metadata
- * Supports: .txt, .md, .json
+ * Supports: .txt, .md, .json, .srt
  */
 export function parseTranscript(filepath) {
   const ext = path.extname(filepath).toLowerCase();
   const filename = path.basename(filepath);
   const content = fs.readFileSync(filepath, 'utf-8');
-  
+
   let parsed = {
     filename,
     filepath,
@@ -20,7 +20,7 @@ export function parseTranscript(filepath) {
     speakers: [],
     lines: []
   };
-  
+
   switch (ext) {
     case '.txt':
     case '.md':
@@ -29,11 +29,14 @@ export function parseTranscript(filepath) {
     case '.json':
       parsed = parseJsonTranscript(parsed, content);
       break;
+    case '.srt':
+      parsed = parseSrtTranscript(parsed, content);
+      break;
     default:
       // Treat as plain text
       parsed = parseTextTranscript(parsed, content);
   }
-  
+
   return parsed;
 }
 
@@ -167,6 +170,72 @@ function parseJsonTranscript(parsed, content) {
     // Fall back to text parsing
     return parseTextTranscript(parsed, content);
   }
+}
+
+/**
+ * Parse SRT subtitle file into transcript format
+ * SRT format: sequence number, timestamp range, text content, blank line
+ */
+function parseSrtTranscript(parsed, content) {
+  const blocks = content.trim().split(/\n\n+/);
+  const speakers = new Set();
+  const parsedLines = [];
+
+  for (const block of blocks) {
+    const lines = block.split('\n');
+    if (lines.length < 3) continue;
+
+    // Line 1: sequence number (skip it)
+    // Line 2: timestamp range "00:00:01,000 --> 00:00:04,500"
+    const timestampLine = lines[1];
+    const tsMatch = timestampLine.match(
+      /(\d{2}:\d{2}:\d{2}),\d{3}\s*-->\s*(\d{2}:\d{2}:\d{2}),\d{3}/
+    );
+    if (!tsMatch) continue;
+
+    const startTime = tsMatch[1];
+    const endTime = tsMatch[2];
+
+    // Line 3+: text content (may span multiple lines)
+    const textContent = lines.slice(2).join(' ').trim();
+    if (!textContent) continue;
+
+    // Try to extract speaker label (e.g., "Speaker 1: Hello")
+    const speakerMatch = textContent.match(/^([^:]{1,30}):\s*(.+)$/);
+    let speaker = 'Unknown';
+    let spokenContent = textContent;
+
+    if (speakerMatch) {
+      speaker = speakerMatch[1].trim();
+      spokenContent = speakerMatch[2].trim();
+      speakers.add(speaker);
+    }
+
+    parsedLines.push({
+      speaker,
+      timestamp: startTime,
+      endTime,
+      content: spokenContent
+    });
+  }
+
+  // Estimate duration from last block's end timestamp
+  if (parsedLines.length > 0) {
+    const lastLine = parsedLines[parsedLines.length - 1];
+    const ts = lastLine.endTime || lastLine.timestamp;
+    if (ts) {
+      const parts = ts.split(':').map(Number);
+      parsed.durationMinutes = parts[0] * 60 + parts[1] + Math.ceil(parts[2] / 60);
+    }
+  }
+
+  parsed.speakers = Array.from(speakers);
+  parsed.lines = parsedLines;
+  parsed.rawContent = parsedLines
+    .map(l => `${l.speaker}: ${l.content}`)
+    .join('\n');
+
+  return parsed;
 }
 
 /**

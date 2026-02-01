@@ -239,7 +239,7 @@ function App() {
       </div>
 
       {/* Floating Capture Button */}
-      <CaptureModal />
+      <CaptureModal activeView={activeView} />
     </div>
   );
 }

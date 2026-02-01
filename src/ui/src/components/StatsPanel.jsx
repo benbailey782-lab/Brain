@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import {
   FileText, Layers, Users, Target, TrendingUp,
   Clock, Mic, MessageSquare, AlertCircle, CheckCircle,
-  Package, Settings, Lightbulb, HelpCircle, Coffee, Brain, Sparkles
+  Package, Settings, Lightbulb, HelpCircle, Coffee, Sparkles
 } from 'lucide-react';
 import StatCard from './shared/StatCard';
 
@@ -11,8 +11,8 @@ const KNOWLEDGE_TYPE_CONFIG = {
   product_knowledge: { label: 'Product', icon: Package, color: 'bg-blue-500' },
   process_knowledge: { label: 'Process', icon: Settings, color: 'bg-purple-500' },
   people_context: { label: 'People', icon: Users, color: 'bg-prism-blue' },
-  sales_insight: { label: 'Sales', icon: Target, color: 'bg-amber-500' },
-  advice_received: { label: 'Advice', icon: Lightbulb, color: 'bg-yellow-500' },
+  sales_insight: { label: 'Sales', icon: Target, color: 'bg-prism-500' },
+  advice_received: { label: 'Advice', icon: Lightbulb, color: 'bg-prism-lavender' },
   decision_rationale: { label: 'Decisions', icon: HelpCircle, color: 'bg-indigo-500' },
   competitive_intel: { label: 'Competitive', icon: Target, color: 'bg-red-500' },
   small_talk: { label: 'Small Talk', icon: Coffee, color: 'bg-zinc-500' },
@@ -222,7 +222,7 @@ function StatsPanel() {
       {/* Header */}
       <div className="flex items-center gap-4">
         <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-prism-blue/20 to-prism-400/20 flex items-center justify-center glow-prism-subtle">
-          <Brain className="w-6 h-6 text-prism-blue" />
+          <Sparkles className="w-6 h-6 text-prism-blue" />
         </div>
         <div>
           <h2 className="text-xl font-semibold text-white">Dashboard</h2>
@@ -302,7 +302,7 @@ function StatsPanel() {
           label="Deals"
           value={stats?.totalDeals || 0}
           subtext="Active opportunities"
-          color="amber"
+          color="prism"
           delay={0.15}
         />
       </div>

@@ -4,7 +4,7 @@ import {
   ArrowLeft, Building, DollarSign, Calendar, User,
   AlertCircle, CheckCircle, HelpCircle, Edit2, Save, X,
   MessageSquare, FileText, TrendingUp, Zap, ChevronRight,
-  Target, Clock, Award, Brain, RefreshCw, Sparkles,
+  Target, Clock, Award, RefreshCw, Sparkles,
   AlertTriangle, CheckSquare, Square, Lightbulb
 } from 'lucide-react';
 import ConfidenceBadge from './shared/ConfidenceBadge';
@@ -338,7 +338,7 @@ function AIBrief({ dealId, onRefresh }) {
       >
         <div className="flex items-center gap-3 mb-4">
           <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-prism-blue/20 to-prism-400/20 flex items-center justify-center glow-prism-subtle">
-            <Brain className="w-5 h-5 text-prism-blue" />
+            <Sparkles className="w-5 h-5 text-prism-blue" />
           </div>
           <div>
             <h3 className="font-medium text-white">Deal Summary</h3>
@@ -736,7 +736,7 @@ function DealDetail({ deal, dealId, onBack, onNavigateToPerson }) {
               : 'border-transparent text-zinc-400 hover:text-zinc-200'
           }`}
         >
-          <Brain className="w-4 h-4" />
+          <Sparkles className="w-4 h-4" />
           AI Brief
         </button>
         <button

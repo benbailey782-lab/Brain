@@ -1,10 +1,7 @@
-import { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Menu, Search, Command } from 'lucide-react';
+import { AnimatePresence, motion } from 'framer-motion';
+import { Menu } from 'lucide-react';
 
 export default function Header({ health, onMenuClick }) {
-  const [searchFocused, setSearchFocused] = useState(false);
-
   return (
     <header
       className="h-14 sticky top-0 z-10"
@@ -24,38 +21,8 @@ export default function Header({ health, onMenuClick }) {
           <Menu className="w-5 h-5" />
         </button>
 
-        {/* Center - Command palette trigger */}
-        <motion.div
-          className="flex-1 max-w-md mx-auto"
-          animate={{ scale: searchFocused ? 1.02 : 1 }}
-          transition={{ duration: 0.15 }}
-        >
-          <button
-            onClick={() => {
-              // Command palette placeholder - could open a modal
-              setSearchFocused(true);
-              setTimeout(() => setSearchFocused(false), 200);
-            }}
-            className={`
-              w-full flex items-center gap-3 px-4 py-2 rounded-xl
-              text-sm text-zinc-500 transition-all duration-200
-              hover:text-zinc-400
-            `}
-            style={{
-              background: 'var(--surface-3)',
-              border: '1px solid var(--glass-border)'
-            }}
-          >
-            <Search className="w-4 h-4" />
-            <span className="flex-1 text-left">Search anything...</span>
-            <div className="hidden sm:flex items-center gap-1 text-xs text-zinc-600">
-              <kbd className="px-1.5 py-0.5 rounded bg-zinc-800 border border-zinc-700">
-                <Command className="w-3 h-3 inline" />
-              </kbd>
-              <kbd className="px-1.5 py-0.5 rounded bg-zinc-800 border border-zinc-700">K</kbd>
-            </div>
-          </button>
-        </motion.div>
+        {/* Spacer */}
+        <div className="flex-1" />
 
         {/* Right side - AI status pill */}
         <div className="flex items-center gap-3">
@@ -66,7 +33,7 @@ export default function Header({ health, onMenuClick }) {
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: 10 }}
                 className={`
-                  hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full
+                  flex items-center gap-2 px-3 py-1.5 rounded-full
                   text-xs font-medium transition-colors
                   ${health.aiEnabled
                     ? 'bg-prism-blue/10 text-prism-blue'

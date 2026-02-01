@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import {
-  Lightbulb, Target, TrendingUp, Brain, RefreshCw,
+  Lightbulb, Target, TrendingUp, Sparkles, RefreshCw,
   ThumbsUp, ThumbsDown, X, ChevronRight, Zap,
   Users, DollarSign, Building2, Clock, AlertCircle
 } from 'lucide-react';
@@ -9,7 +9,7 @@ import ConfidenceBadge from '../shared/ConfidenceBadge';
 const INSIGHT_ICONS = {
   icp: Target,
   pattern: TrendingUp,
-  coaching: Brain,
+  coaching: Sparkles,
   signal: Zap,
   recommendation: Lightbulb
 };
@@ -18,7 +18,7 @@ const INSIGHT_COLORS = {
   icp: 'bg-purple-500/10 text-purple-400 border-purple-500/30',
   pattern: 'bg-blue-500/10 text-blue-400 border-blue-500/30',
   coaching: 'bg-prism-blue/10 text-prism-blue border-prism-blue/30',
-  signal: 'bg-amber-500/10 text-amber-400 border-amber-500/30',
+  signal: 'bg-prism-lavender/10 text-prism-lavender border-prism-lavender/30',
   recommendation: 'bg-cyan-500/10 text-cyan-400 border-cyan-500/30'
 };
 
@@ -158,8 +158,8 @@ export default function InsightsDashboard() {
         <div className="bg-zinc-800/50 rounded-xl border border-zinc-700/50 p-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-purple-500/10 flex items-center justify-center">
-                <Brain className="w-5 h-5 text-purple-400" />
+              <div className="w-10 h-10 rounded-lg bg-prism-500/10 flex items-center justify-center">
+                <Sparkles className="w-5 h-5 text-prism-blue" />
               </div>
               <div>
                 <div className="text-sm font-medium text-white">Learning Engine</div>
@@ -238,7 +238,7 @@ export default function InsightsDashboard() {
         <div className="bg-zinc-800/50 rounded-xl border border-zinc-700/50 p-4">
           <div className="flex items-center gap-3 mb-4">
             <div className="w-10 h-10 rounded-lg bg-prism-blue/10 flex items-center justify-center">
-              <Brain className="w-5 h-5 text-prism-blue" />
+              <Sparkles className="w-5 h-5 text-prism-blue" />
             </div>
             <div>
               <h2 className="text-lg font-medium text-white">Coaching Recommendations</h2>
