@@ -14,6 +14,7 @@ const configPath = path.join(app.getPath('userData'), 'config.json');
 // Default config
 const defaultConfig = {
   watchFolder: path.join(app.getPath('documents'), 'Prism', 'transcripts'),
+  emailFolder: '',
   ollamaModel: 'llama3.1:8b',
   setupComplete: false,
   windowBounds: { width: 1280, height: 800, x: undefined, y: undefined }
@@ -272,6 +273,7 @@ async function startServer(config) {
   process.env.DB_PATH = path.join(dataPath, 'prism.db');
   process.env.UPLOADS_DIR = uploadsPath;
   process.env.WATCH_FOLDER = config.watchFolder || path.join(app.getPath('documents'), 'Prism', 'transcripts');
+  process.env.EMAIL_FOLDER = config.emailFolder || '';
 
   // Find available port for production
   actualPort = await findAvailablePort(3001);

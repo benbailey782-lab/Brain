@@ -607,4 +607,8 @@ export function getDatabase() {
   return new Database(dbPath);
 }
 
-export default { initDatabase, getDatabase };
+export function getDbPath() {
+  return dbPath;
+}
+
+export default { initDatabase, getDatabase, getDbPath };

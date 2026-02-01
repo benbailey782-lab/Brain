@@ -5,7 +5,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import fs from 'fs';
 
-import { initDatabase } from './db/schema.js';
+import { initDatabase, getDbPath } from './db/schema.js';
 import * as queries from './db/queries.js';
 import { startWatcher, restartWatcher } from './ingestion/watcher.js';
 import { initAI, getAIStatus, processTranscript, getCallAI, streamAI } from './processing/processor.js';
@@ -32,6 +32,7 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const PORT = process.env.PORT || 3001;
 const WATCH_FOLDER = process.env.WATCH_FOLDER || './transcripts';
+const EMAIL_FOLDER = process.env.EMAIL_FOLDER || '';
 
 // Middleware
 app.use(cors());
@@ -64,13 +65,28 @@ if (!fs.existsSync(WATCH_FOLDER)) {
   fs.mkdirSync(WATCH_FOLDER, { recursive: true });
 }
 
-// Start file watcher
+// Start transcript file watcher
 const watcher = startWatcher(WATCH_FOLDER, {
-  processImmediately: false, // Will check AI status when processing
+  processImmediately: false,
   onNewFile: ({ transcriptId, filepath }) => {
     console.log(`API: New transcript ingested: ${transcriptId}`);
   }
 });
+
+// Start email folder watcher (if configured)
+let emailWatcher = null;
+if (EMAIL_FOLDER && EMAIL_FOLDER.trim() !== '') {
+  if (!fs.existsSync(EMAIL_FOLDER)) {
+    fs.mkdirSync(EMAIL_FOLDER, { recursive: true });
+  }
+  emailWatcher = startWatcher(EMAIL_FOLDER, {
+    processImmediately: false,
+    onNewFile: ({ transcriptId, filepath }) => {
+      console.log(`API: New email ingested: ${transcriptId}`);
+    }
+  });
+  console.log(`Email watcher active: ${EMAIL_FOLDER}`);
+}
 
 // ============================================
 // API ROUTES
@@ -79,12 +95,48 @@ const watcher = startWatcher(WATCH_FOLDER, {
 // Health check
 app.get('/api/health', (req, res) => {
   const aiStatus = getAIStatus();
-  res.json({ 
-    status: 'ok', 
+
+  // Check watch folder status
+  let watchFolderExists = false;
+  let watchFolderFileCount = 0;
+  try {
+    watchFolderExists = fs.existsSync(WATCH_FOLDER);
+    if (watchFolderExists) {
+      const files = fs.readdirSync(WATCH_FOLDER);
+      watchFolderFileCount = files.filter(f => {
+        const ext = path.extname(f).toLowerCase();
+        return ['.txt', '.md', '.json', '.srt', '.pdf', '.docx', '.eml'].includes(ext);
+      }).length;
+    }
+  } catch (e) { /* folder access error */ }
+
+  // Check email folder status
+  const currentEmailFolder = process.env.EMAIL_FOLDER || EMAIL_FOLDER || '';
+  let emailFolderExists = false;
+  let emailFolderFileCount = 0;
+  if (currentEmailFolder) {
+    try {
+      emailFolderExists = fs.existsSync(currentEmailFolder);
+      if (emailFolderExists) {
+        const files = fs.readdirSync(currentEmailFolder);
+        emailFolderFileCount = files.filter(f =>
+          path.extname(f).toLowerCase() === '.eml'
+        ).length;
+      }
+    } catch (e) { /* folder access error */ }
+  }
+
+  res.json({
+    status: 'ok',
     aiEnabled: aiStatus.enabled,
     aiProvider: aiStatus.provider,
     aiModel: aiStatus.model,
-    watchFolder: WATCH_FOLDER
+    watchFolder: WATCH_FOLDER,
+    watchFolderExists,
+    watchFolderFileCount,
+    emailFolder: currentEmailFolder,
+    emailFolderExists,
+    emailFolderFileCount
   });
 });
 
@@ -94,6 +146,50 @@ app.get('/api/stats', (req, res) => {
     const stats = queries.getStats();
     res.json(stats);
   } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Detailed database info for Settings
+app.get('/api/data/info', (req, res) => {
+  try {
+    const info = queries.getDbInfo();
+    const dbFilePath = getDbPath();
+
+    let dbSizeBytes = 0;
+    try {
+      dbSizeBytes = fs.statSync(dbFilePath).size;
+    } catch (e) { /* db file may not exist yet */ }
+
+    res.json({
+      ...info,
+      dbPath: dbFilePath,
+      dbSizeBytes
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Reset all data (destructive — requires confirmation token)
+app.post('/api/data/reset', (req, res) => {
+  try {
+    const { confirm } = req.body;
+    if (confirm !== 'RESET_ALL_DATA') {
+      return res.status(400).json({
+        error: 'Confirmation required. Send { "confirm": "RESET_ALL_DATA" }'
+      });
+    }
+
+    const result = queries.resetDatabase();
+    console.log('DATABASE RESET: All data cleared by user request');
+
+    res.json({
+      success: true,
+      message: 'All data has been cleared. Files in the watch folders will be re-imported on next detection.'
+    });
+  } catch (err) {
+    console.error('Reset error:', err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -585,6 +681,50 @@ app.put('/api/config/watch-folder', (req, res) => {
   }
 });
 
+// Get current email folder
+app.get('/api/config/email-folder', (req, res) => {
+  res.json({ emailFolder: process.env.EMAIL_FOLDER || EMAIL_FOLDER || '' });
+});
+
+// Update email folder at runtime
+app.put('/api/config/email-folder', (req, res) => {
+  try {
+    const { emailFolder: newFolder } = req.body;
+    if (!newFolder) {
+      return res.status(400).json({ error: 'emailFolder is required' });
+    }
+
+    // Validate path exists
+    if (!fs.existsSync(newFolder)) {
+      return res.status(400).json({ error: 'Folder does not exist' });
+    }
+
+    // Close existing email watcher if running
+    if (emailWatcher) {
+      emailWatcher.close().catch(err => {
+        console.error('Error closing email watcher:', err);
+      });
+    }
+
+    // Start new email watcher
+    emailWatcher = startWatcher(newFolder, {
+      processImmediately: false,
+      onNewFile: ({ transcriptId, filepath }) => {
+        console.log(`API: New email ingested: ${transcriptId}`);
+      }
+    });
+
+    // Update the module-level variable for health endpoint
+    // Note: This is a runtime-only change. For persistence across restarts,
+    // Electron saves it to config.json and sets EMAIL_FOLDER env var on boot.
+    process.env.EMAIL_FOLDER = newFolder;
+
+    res.json({ success: true, emailFolder: newFolder });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ============================================
 // ELECTRON STATIC FILE SERVING
 // ============================================
@@ -615,6 +755,7 @@ app.listen(PORT, () => {
 ║                                                           ║
 ║  API Server:     http://localhost:${PORT}                   ║
 ║  Watch Folder:   ${WATCH_FOLDER.padEnd(36)}  ║
+║  Email Folder:   ${(process.env.EMAIL_FOLDER || EMAIL_FOLDER || 'Not configured').padEnd(36)}  ║
 ║  AI Provider:    ${(aiStatus.provider || 'none').padEnd(36)}  ║
 ║  AI Model:       ${(aiStatus.model || 'n/a').padEnd(36)}  ║
 ║  Mode:           ${(isElectron ? 'Electron' : 'Development').padEnd(36)}  ║

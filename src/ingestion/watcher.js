@@ -5,8 +5,12 @@ import { parseTranscript, parseFilenameMetadata } from './parser.js';
 import { createTranscript, transcriptExists } from '../db/queries.js';
 import { processTranscript } from '../processing/processor.js';
 import { extractPdfText, extractDocxText } from './extractors.js';
+import { parseEmail, saveAttachments } from './emailParser.js';
 
-const SUPPORTED_EXTENSIONS = ['.txt', '.md', '.json', '.srt', '.pdf', '.docx'];
+const SUPPORTED_EXTENSIONS = ['.txt', '.md', '.json', '.srt', '.pdf', '.docx', '.eml'];
+
+// Supported attachment extensions (for email attachments)
+const ATTACHMENT_EXTENSIONS = ['.pdf', '.docx', '.txt', '.md', '.csv'];
 
 // Files to ignore (especially for Google Drive sync)
 const IGNORED_PATTERNS = [
@@ -77,6 +81,123 @@ export function startWatcher(watchFolder, options = {}) {
     }
 
     console.log(`New transcript detected: ${filepath}`);
+
+    // ========== EMAIL (.eml) PROCESSING ==========
+    if (ext === '.eml') {
+      try {
+        const email = await parseEmail(filepath);
+
+        if (!email.fullContent || email.fullContent.trim().length === 0) {
+          console.log(`Empty email content from ${filepath}, skipping`);
+          return;
+        }
+
+        // Create transcript record for the email body
+        const emailContext = `Email: ${email.subject}`;
+        const emailTranscriptId = createTranscript({
+          filename: email.filename,
+          filepath: filepath,
+          rawContent: email.fullContent,
+          durationMinutes: null,
+          callDate: email.date ? email.date.toISOString() : new Date().toISOString(),
+          context: emailContext
+        });
+
+        console.log(`Email ingested: ${emailTranscriptId} — "${email.subject}" from ${email.from}`);
+
+        // Process the email body through AI pipeline
+        if (processImmediately) {
+          processTranscript(emailTranscriptId).catch(err => {
+            console.error(`Email processing failed for ${emailTranscriptId}:`, err.message);
+          });
+        }
+
+        if (onNewFile) {
+          onNewFile({ transcriptId: emailTranscriptId, filepath });
+        }
+
+        // Process attachments — each becomes its own transcript linked by context
+        if (email.hasAttachments) {
+          // Save attachments to a temp directory next to the email
+          const attachDir = path.join(path.dirname(filepath), '.prism-attachments');
+          const savedFiles = saveAttachments(email.attachments, attachDir);
+
+          for (const att of savedFiles) {
+            const attExt = path.extname(att.filename).toLowerCase();
+
+            // Only process supported attachment types
+            if (!ATTACHMENT_EXTENSIONS.includes(attExt)) {
+              console.log(`Skipping unsupported attachment: ${att.filename} (${att.contentType})`);
+              continue;
+            }
+
+            // Skip if this attachment was already processed
+            if (transcriptExists(att.filepath)) {
+              console.log(`Attachment already processed: ${att.filename}`);
+              continue;
+            }
+
+            try {
+              let attachmentText = '';
+
+              if (attExt === '.pdf') {
+                attachmentText = await extractPdfText(att.filepath);
+              } else if (attExt === '.docx') {
+                attachmentText = await extractDocxText(att.filepath);
+              } else {
+                // .txt, .md, .csv — read as plain text
+                attachmentText = fs.readFileSync(att.filepath, 'utf-8');
+              }
+
+              if (!attachmentText || attachmentText.trim().length === 0) {
+                console.log(`Empty attachment content: ${att.filename}, skipping`);
+                continue;
+              }
+
+              // Prepend attachment context header
+              const attachmentHeader = [
+                `[Attachment from email]`,
+                `Email Subject: ${email.subject}`,
+                `Email From: ${email.from}`,
+                `Email Date: ${email.date ? email.date.toISOString() : 'Unknown'}`,
+                `Attachment: ${att.filename} (${att.contentType})`,
+                '---',
+                ''
+              ].join('\n');
+
+              const attTranscriptId = createTranscript({
+                filename: att.filename,
+                filepath: att.filepath,
+                rawContent: attachmentHeader + attachmentText,
+                durationMinutes: null,
+                callDate: email.date ? email.date.toISOString() : new Date().toISOString(),
+                context: `Attachment: ${att.filename} (from "${email.subject}")`
+              });
+
+              console.log(`  Attachment ingested: ${attTranscriptId} — ${att.filename}`);
+
+              if (processImmediately) {
+                processTranscript(attTranscriptId).catch(err => {
+                  console.error(`Attachment processing failed for ${attTranscriptId}:`, err.message);
+                });
+              }
+
+              if (onNewFile) {
+                onNewFile({ transcriptId: attTranscriptId, filepath: att.filepath });
+              }
+            } catch (attErr) {
+              console.error(`Failed to process attachment ${att.filename}:`, attErr.message);
+            }
+          }
+        }
+
+        return; // Done with .eml — skip other processing paths
+      } catch (err) {
+        console.error(`Email parsing failed for ${filepath}:`, err.message);
+        if (onError) onError(err, filepath);
+        return;
+      }
+    }
 
     // PDF/DOCX: extract text via dedicated extractors, skip parseTranscript
     if (ext === '.pdf' || ext === '.docx') {

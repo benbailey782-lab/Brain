@@ -419,6 +419,109 @@ export function getStats() {
   };
 }
 
+// ============================================
+// PHASE 4.4: DATA MANAGEMENT QUERIES
+// ============================================
+
+export function getDbInfo() {
+  const db = getDatabase();
+
+  const transcriptCount = db.prepare('SELECT COUNT(*) as count FROM transcripts').get().count;
+  const segmentCount = db.prepare('SELECT COUNT(*) as count FROM segments').get().count;
+  const peopleCount = db.prepare('SELECT COUNT(*) as count FROM people').get().count;
+  const dealCount = db.prepare('SELECT COUNT(*) as count FROM deals').get().count;
+
+  // Date range of ingested content
+  const dateRange = db.prepare(`
+    SELECT MIN(created_at) as earliest, MAX(created_at) as latest
+    FROM transcripts
+  `).get();
+
+  // Processed vs pending
+  const processedCount = db.prepare(`
+    SELECT COUNT(*) as count FROM transcripts WHERE processed_at IS NOT NULL
+  `).get().count;
+
+  // Email vs transcript counts (emails have context starting with "Email:")
+  const emailCount = db.prepare(`
+    SELECT COUNT(*) as count FROM transcripts WHERE context LIKE 'Email:%'
+  `).get().count;
+
+  const attachmentCount = db.prepare(`
+    SELECT COUNT(*) as count FROM transcripts WHERE context LIKE 'Attachment:%'
+  `).get().count;
+
+  // Optional tables — may not exist in all installations
+  let prospectCount = 0;
+  let queryCount = 0;
+  try {
+    prospectCount = db.prepare('SELECT COUNT(*) as count FROM prospects').get().count;
+  } catch (e) { /* table may not exist */ }
+  try {
+    queryCount = db.prepare('SELECT COUNT(*) as count FROM query_history').get().count;
+  } catch (e) { /* table may not exist */ }
+
+  db.close();
+
+  return {
+    transcripts: {
+      total: transcriptCount,
+      processed: processedCount,
+      unprocessed: transcriptCount - processedCount,
+      emails: emailCount,
+      attachments: attachmentCount,
+      files: transcriptCount - emailCount - attachmentCount
+    },
+    segments: segmentCount,
+    people: peopleCount,
+    deals: dealCount,
+    prospects: prospectCount,
+    queries: queryCount,
+    dateRange: {
+      earliest: dateRange?.earliest || null,
+      latest: dateRange?.latest || null
+    }
+  };
+}
+
+export function resetDatabase() {
+  const db = getDatabase();
+
+  // Order matters — child tables first, then parents
+  const tables = [
+    'query_history',
+    'outreach_messages',
+    'prospect_contacts',
+    'transcript_metrics',
+    'living_sections',
+    'computed_patterns',
+    'learning_snapshots',
+    'meddpicc_scores',
+    'deal_segments',
+    'person_segments',
+    'segments',
+    'prospects',
+    'deals',
+    'people',
+    'transcripts'
+  ];
+
+  db.pragma('foreign_keys = OFF');
+
+  for (const table of tables) {
+    try {
+      db.prepare(`DELETE FROM ${table}`).run();
+    } catch (e) {
+      console.log(`Reset: table ${table} skipped (${e.message})`);
+    }
+  }
+
+  db.pragma('foreign_keys = ON');
+  db.close();
+
+  return { success: true, tablesCleared: tables.length };
+}
+
 export function getSegment(id) {
   const db = getDatabase();
   const stmt = db.prepare('SELECT * FROM segments WHERE id = ?');
@@ -1629,6 +1732,10 @@ export default {
   saveTranscriptMetrics,
   getTranscriptMetrics,
   getStats,
+
+  // Phase 4.4: Data management queries
+  getDbInfo,
+  resetDatabase,
 
   // Phase 2: Prospect queries
   createProspect,
