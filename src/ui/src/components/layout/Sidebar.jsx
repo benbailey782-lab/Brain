@@ -1,5 +1,17 @@
 import React from 'react';
-import { Brain, ChevronLeft, ChevronRight } from 'lucide-react';
+import {
+  Brain,
+  ChevronLeft,
+  ChevronRight,
+  MessageSquare,
+  Lightbulb,
+  Target,
+  DollarSign,
+  Users,
+  BookOpen,
+  FileText,
+  BarChart3
+} from 'lucide-react';
 
 const SECTIONS = {
   main: 'Main',
@@ -7,8 +19,19 @@ const SECTIONS = {
   data: 'Data'
 };
 
-export default function Sidebar({ items, activeView, onNavigate, collapsed, onToggleCollapse, health }) {
-  const groupedItems = items.reduce((acc, item) => {
+const NAV_ITEMS = [
+  { id: 'ask', label: 'Ask', icon: MessageSquare, section: 'main' },
+  { id: 'insights', label: 'Insights', icon: Lightbulb, section: 'main' },
+  { id: 'prospects', label: 'Prospects', icon: Target, section: 'pipeline' },
+  { id: 'deals', label: 'Deals', icon: DollarSign, section: 'pipeline' },
+  { id: 'people', label: 'People', icon: Users, section: 'data' },
+  { id: 'knowledge', label: 'Knowledge', icon: BookOpen, section: 'data' },
+  { id: 'transcripts', label: 'Transcripts', icon: FileText, section: 'data' },
+  { id: 'stats', label: 'Stats', icon: BarChart3, section: 'data' },
+];
+
+export default function Sidebar({ activeView, onNavigate, collapsed, onToggleCollapse, health }) {
+  const groupedItems = NAV_ITEMS.reduce((acc, item) => {
     const section = item.section || 'main';
     if (!acc[section]) acc[section] = [];
     acc[section].push(item);
