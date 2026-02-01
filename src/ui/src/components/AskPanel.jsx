@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Send, User, Loader2, Sparkles, MessageSquare, Mic,
+  Send, User, Loader2, Sparkles, MessageSquare, Mic, Plus,
   FileText, Target, Users, Lightbulb, AlertCircle, History,
   ThumbsUp, ThumbsDown, ExternalLink, ChevronRight, X, RefreshCw
 } from 'lucide-react';
@@ -11,9 +11,9 @@ import { StaggerContainer, StaggerItem } from './shared/PageTransition';
 // Prism Logo Mark SVG component
 const PrismLogo = ({ className = "w-6 h-6" }) => (
   <svg className={className} viewBox="0 0 280 199" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <ellipse opacity="0.6" cx="140" cy="139" rx="140" ry="60" fill="url(#paint0_linear_ask)"/>
-    <ellipse opacity="0.6" cx="139.5" cy="100.5" rx="137.5" ry="57.5" fill="url(#paint1_linear_ask)"/>
-    <ellipse opacity="0.6" cx="140" cy="60" rx="140" ry="60" fill="url(#paint2_linear_ask)"/>
+    <ellipse opacity="0.85" cx="140" cy="139" rx="140" ry="60" fill="url(#paint0_linear_ask)"/>
+    <ellipse opacity="0.85" cx="139.5" cy="100.5" rx="137.5" ry="57.5" fill="url(#paint1_linear_ask)"/>
+    <ellipse opacity="0.85" cx="140" cy="60" rx="140" ry="60" fill="url(#paint2_linear_ask)"/>
     <defs>
       <linearGradient id="paint0_linear_ask" x1="0" y1="139" x2="280" y2="139" gradientUnits="userSpaceOnUse">
         <stop stopColor="#4AA8D8"/>
@@ -41,7 +41,7 @@ const DEFAULT_SUGGESTIONS = [
   { icon: Target, text: "What are my biggest MEDDPICC gaps?", category: 'deals' },
 ];
 
-export default function AskPanel() {
+export default function AskPanel({ onOpenCapture }) {
   const [query, setQuery] = useState('');
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -389,6 +389,19 @@ export default function AskPanel() {
             border: '1px solid var(--glass-border)'
           }}
         >
+          {/* + Capture button */}
+          {onOpenCapture && (
+            <motion.button
+              type="button"
+              onClick={onOpenCapture}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              className="p-2.5 rounded-xl text-zinc-400 hover:text-prism-blue hover:bg-prism-blue/10 transition-colors"
+              title="Add transcript, note, or voice memo"
+            >
+              <Plus className="w-5 h-5" />
+            </motion.button>
+          )}
           <input
             ref={inputRef}
             type="text"
@@ -456,16 +469,16 @@ function EmptyState({ suggestions, onSuggestionClick }) {
     >
       {/* Hero icon with glow */}
       <div className="relative mb-6">
-        {/* Glow layer — blurred, pulsing duplicate of logo colors */}
+        {/* Glow layer — must extend beyond logo for blur to be visible */}
         <motion.div
           animate={{
-            opacity: [0.4, 0.7, 0.4],
+            opacity: [0.4, 0.75, 0.4],
             scale: [1, 1.15, 1],
           }}
           transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
-          className="absolute inset-0 blur-2xl"
+          className="absolute -inset-10 blur-2xl pointer-events-none"
           style={{
-            background: 'radial-gradient(ellipse at center, rgba(74, 168, 216, 0.3) 0%, rgba(96, 120, 200, 0.2) 40%, rgba(152, 120, 192, 0.1) 70%, transparent 100%)'
+            background: 'radial-gradient(ellipse at center, rgba(74, 168, 216, 0.35) 0%, rgba(96, 120, 200, 0.25) 35%, rgba(152, 120, 192, 0.15) 60%, transparent 85%)'
           }}
         />
         {/* Actual logo — crisp, not blurred */}

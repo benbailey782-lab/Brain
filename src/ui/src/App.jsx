@@ -41,6 +41,7 @@ function App() {
   const [health, setHealth] = useState(null);
   const [error, setError] = useState(null);
   const [setupComplete, setSetupComplete] = useState(true); // default true for web
+  const [captureModalOpen, setCaptureModalOpen] = useState(false);
 
   useEffect(() => {
     // Check API health
@@ -134,7 +135,7 @@ function App() {
     // Main list/panel views
     switch (activeView) {
       case 'ask':
-        return <AskPanel />;
+        return <AskPanel onOpenCapture={() => setCaptureModalOpen(true)} />;
       case 'insights':
         return <InsightsDashboard />;
       case 'prospects':
@@ -239,7 +240,7 @@ function App() {
       </div>
 
       {/* Floating Capture Button */}
-      <CaptureModal activeView={activeView} />
+      <CaptureModal activeView={activeView} isOpen={captureModalOpen} onOpenChange={setCaptureModalOpen} />
     </div>
   );
 }

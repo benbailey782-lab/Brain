@@ -15,9 +15,9 @@ import {
 // Prism Logo Mark SVG component
 const PrismLogo = ({ className = "w-6 h-6" }) => (
   <svg className={className} viewBox="0 0 280 199" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <ellipse opacity="0.6" cx="140" cy="139" rx="140" ry="60" fill="url(#paint0_linear_sidebar)"/>
-    <ellipse opacity="0.6" cx="139.5" cy="100.5" rx="137.5" ry="57.5" fill="url(#paint1_linear_sidebar)"/>
-    <ellipse opacity="0.6" cx="140" cy="60" rx="140" ry="60" fill="url(#paint2_linear_sidebar)"/>
+    <ellipse opacity="0.85" cx="140" cy="139" rx="140" ry="60" fill="url(#paint0_linear_sidebar)"/>
+    <ellipse opacity="0.85" cx="139.5" cy="100.5" rx="137.5" ry="57.5" fill="url(#paint1_linear_sidebar)"/>
+    <ellipse opacity="0.85" cx="140" cy="60" rx="140" ry="60" fill="url(#paint2_linear_sidebar)"/>
     <defs>
       <linearGradient id="paint0_linear_sidebar" x1="0" y1="139" x2="280" y2="139" gradientUnits="userSpaceOnUse">
         <stop stopColor="#4AA8D8"/>

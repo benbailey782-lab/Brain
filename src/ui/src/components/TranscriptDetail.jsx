@@ -17,6 +17,7 @@ function TranscriptDetail({ transcript, onBack }) {
   const [metrics, setMetrics] = useState(null);
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState(false);
+  const [processError, setProcessError] = useState(null);
   const [activeTab, setActiveTab] = useState('segments');
 
   useEffect(() => {
@@ -42,13 +43,32 @@ function TranscriptDetail({ transcript, onBack }) {
 
   const handleReprocess = async () => {
     setProcessing(true);
+    setProcessError(null);
     try {
-      await fetch(`/api/transcripts/${transcript.id}/process`, { method: 'POST' });
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 120000); // 2 minute timeout
+
+      const response = await fetch(`/api/transcripts/${transcript.id}/process`, {
+        method: 'POST',
+        signal: controller.signal
+      });
+      clearTimeout(timeout);
+
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || data.suggestion || 'Processing failed');
+      }
+      // Refresh transcript data after successful processing
       await fetchDetails();
     } catch (err) {
-      console.error('Error reprocessing:', err);
+      if (err.name === 'AbortError') {
+        setProcessError('Processing timed out. Is Ollama running? Check with: ollama serve');
+      } else {
+        setProcessError(err.message || 'Processing failed. Make sure AI is configured.');
+      }
+    } finally {
+      setProcessing(false);
     }
-    setProcessing(false);
   };
 
   return (
@@ -100,6 +120,13 @@ function TranscriptDetail({ transcript, onBack }) {
           {processing ? 'Processing...' : 'Reprocess'}
         </button>
       </div>
+
+      {/* Process Error Display */}
+      {processError && (
+        <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20">
+          <p className="text-sm text-red-400">{processError}</p>
+        </div>
+      )}
 
       {/* Summary */}
       {transcript.summary && (

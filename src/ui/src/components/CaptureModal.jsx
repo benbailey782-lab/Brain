@@ -20,8 +20,12 @@ import {
  * CaptureModal - Floating action button with multi-input capture modal
  * Phase 4.2: Added Voice Memo tab
  */
-export default function CaptureModal({ activeView }) {
-  const [isOpen, setIsOpen] = useState(false);
+export default function CaptureModal({ activeView, isOpen: externalOpen, onOpenChange }) {
+  const [internalOpen, setInternalOpen] = useState(false);
+
+  // Use external control if provided, otherwise internal
+  const isOpen = onOpenChange ? externalOpen : internalOpen;
+  const setIsOpen = onOpenChange ? onOpenChange : setInternalOpen;
   const [activeTab, setActiveTab] = useState('upload');
   const [uploading, setUploading] = useState(false);
   const [uploadResult, setUploadResult] = useState(null);
