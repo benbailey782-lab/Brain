@@ -260,30 +260,26 @@ async function startServer(config) {
     fs.mkdirSync(config.watchFolder, { recursive: true });
   }
 
+  if (isDev) {
+    // In development, the server is already running via concurrently on port 3001
+    // Just return the known port — don't try to find or start anything
+    actualPort = 3001;
+    return actualPort;
+  }
+
+  // Production: set env vars and start server in-process
   process.env.ELECTRON = 'true';
   process.env.DB_PATH = path.join(dataPath, 'prism.db');
   process.env.UPLOADS_DIR = uploadsPath;
   process.env.WATCH_FOLDER = config.watchFolder || path.join(app.getPath('documents'), 'Prism', 'transcripts');
 
-  // Find available port
+  // Find available port for production
   actualPort = await findAvailablePort(3001);
   process.env.PORT = String(actualPort);
 
-  // Import and start the server in-process
   try {
-    let serverPath;
-    if (isDev) {
-      serverPath = path.join(__dirname, '..', 'src', 'server.js');
-    } else {
-      serverPath = path.join(process.resourcesPath, 'app.asar', 'src', 'server.js');
-    }
-
-    // For production, the server will be started in-process
-    // For development, we assume server is already running
-    if (!isDev) {
-      const serverModule = await import(`file://${serverPath}`);
-    }
-
+    const serverPath = path.join(process.resourcesPath, 'app.asar', 'src', 'server.js');
+    const serverModule = await import(`file://${serverPath}`);
     return actualPort;
   } catch (err) {
     console.error('Failed to start server:', err);
