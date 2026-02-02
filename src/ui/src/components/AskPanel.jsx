@@ -235,9 +235,28 @@ export default function AskPanel({ onOpenCapture, onNavigate, onSelectItem }) {
           onNavigate('people');
           onSelectItem(person);
         }
-      } else if ((source.type === 'transcript' || source.type === 'segment') && source.id) {
-        // For segments, navigate to the transcript list — the user can find it from there
-        onNavigate('transcripts');
+      } else if (source.type === 'transcript' && source.id) {
+        // Transcript source — id is the transcript ID directly
+        const res = await fetch(`/api/transcripts/${source.id}`);
+        if (res.ok) {
+          const transcript = await res.json();
+          onNavigate('transcripts');
+          onSelectItem(transcript);
+        }
+      } else if (source.type === 'segment' && source.id) {
+        // Segment source — look up the segment to get its parent transcript_id
+        const segRes = await fetch(`/api/segments/${source.id}`);
+        if (segRes.ok) {
+          const segment = await segRes.json();
+          if (segment.transcript_id) {
+            const txRes = await fetch(`/api/transcripts/${segment.transcript_id}`);
+            if (txRes.ok) {
+              const transcript = await txRes.json();
+              onNavigate('transcripts');
+              onSelectItem(transcript);
+            }
+          }
+        }
       }
     } catch (err) {
       console.error('Source navigation error:', err);
@@ -584,7 +603,7 @@ function SourceBadge({ source, onClick }) {
     stats: 'bg-zinc-500/10 text-zinc-400 border-zinc-500/20'
   };
   const colors = typeColors[source.type] || typeColors.stats;
-  const isNavigable = (source.type === 'deal' || source.type === 'person' || source.type === 'transcript') && source.id;
+  const isNavigable = (source.type === 'deal' || source.type === 'person' || source.type === 'transcript' || source.type === 'segment') && source.id;
 
   return (
     <button
@@ -594,7 +613,9 @@ function SourceBadge({ source, onClick }) {
       }`}
     >
       <span className="capitalize">{source.type}</span>
-      {source.name && <span className="text-zinc-500">: {source.name}</span>}
+      {(source.name || source.transcriptFilename) && (
+        <span className="text-zinc-500">: {source.name || source.transcriptFilename}</span>
+      )}
       {isNavigable && <ExternalLink className="w-3 h-3 ml-0.5 opacity-60" />}
     </button>
   );

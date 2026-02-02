@@ -34,6 +34,42 @@ const PORT = process.env.PORT || 3001;
 const WATCH_FOLDER = process.env.WATCH_FOLDER || './transcripts';
 const EMAIL_FOLDER = process.env.EMAIL_FOLDER || '';
 
+// Processing status tracker (in-memory, resets on restart)
+const processingStatus = {
+  active: [],      // { transcriptId, filename, startedAt }
+  completed: [],   // { transcriptId, filename, completedAt, duration }
+  failed: [],      // { transcriptId, filename, error }
+  totalProcessed: 0
+};
+
+function trackProcessing(transcriptId, filename) {
+  const entry = { transcriptId, filename, startedAt: Date.now() };
+  processingStatus.active.push(entry);
+
+  return {
+    complete: () => {
+      processingStatus.active = processingStatus.active.filter(e => e.transcriptId !== transcriptId);
+      processingStatus.completed.push({
+        transcriptId, filename,
+        completedAt: Date.now(),
+        duration: Date.now() - entry.startedAt
+      });
+      processingStatus.totalProcessed++;
+      // Keep only last 20 completed
+      if (processingStatus.completed.length > 20) processingStatus.completed.shift();
+    },
+    fail: (error) => {
+      processingStatus.active = processingStatus.active.filter(e => e.transcriptId !== transcriptId);
+      processingStatus.failed.push({
+        transcriptId, filename,
+        error: error.message || String(error)
+      });
+      // Keep only last 10 failures
+      if (processingStatus.failed.length > 10) processingStatus.failed.shift();
+    }
+  };
+}
+
 // Middleware
 app.use(cors());
 app.use(express.json());
@@ -70,6 +106,15 @@ const watcher = startWatcher(WATCH_FOLDER, {
   processImmediately: false,
   onNewFile: ({ transcriptId, filepath }) => {
     console.log(`API: New transcript ingested: ${transcriptId}`);
+    // Auto-process if AI is available
+    const aiStatus = getAIStatus();
+    if (aiStatus.enabled) {
+      const filename = filepath.split(/[/\\]/).pop();
+      const tracker = trackProcessing(transcriptId, filename);
+      processTranscript(transcriptId)
+        .then(() => tracker.complete())
+        .catch(err => tracker.fail(err));
+    }
   }
 });
 
@@ -83,6 +128,15 @@ if (EMAIL_FOLDER && EMAIL_FOLDER.trim() !== '') {
     processImmediately: false,
     onNewFile: ({ transcriptId, filepath }) => {
       console.log(`API: New email ingested: ${transcriptId}`);
+      // Auto-process if AI is available
+      const aiStatus = getAIStatus();
+      if (aiStatus.enabled) {
+        const filename = filepath.split(/[/\\]/).pop();
+        const tracker = trackProcessing(transcriptId, filename);
+        processTranscript(transcriptId)
+          .then(() => tracker.complete())
+          .catch(err => tracker.fail(err));
+      }
     }
   });
   console.log(`Email watcher active: ${EMAIL_FOLDER}`);
@@ -137,6 +191,21 @@ app.get('/api/health', (req, res) => {
     emailFolder: currentEmailFolder,
     emailFolderExists,
     emailFolderFileCount
+  });
+});
+
+// Processing status endpoint
+app.get('/api/processing/status', (req, res) => {
+  res.json({
+    activeCount: processingStatus.active.length,
+    active: processingStatus.active.map(e => ({
+      transcriptId: e.transcriptId,
+      filename: e.filename,
+      elapsed: Math.round((Date.now() - e.startedAt) / 1000)
+    })),
+    recentCompleted: processingStatus.completed.slice(-5).reverse(),
+    recentFailed: processingStatus.failed.slice(-5).reverse(),
+    totalProcessed: processingStatus.totalProcessed
   });
 });
 
@@ -641,6 +710,12 @@ app.use('/api/prospects', prospectRoutes);
 app.use('/api/outreach', outreachRoutes);
 app.use('/api/insights', insightRoutes);
 app.use('/api/learning', learningRoutes);
+
+// Make processing tracker available to routes
+app.use((req, res, next) => {
+  req.trackProcessing = trackProcessing;
+  next();
+});
 
 // Phase 3: Upload routes
 app.use('/api', uploadRoutes);

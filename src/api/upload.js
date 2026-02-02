@@ -128,14 +128,16 @@ router.post('/upload', upload.single('file'), async (req, res) => {
 
     if (aiStatus.enabled) {
       try {
-        // Process asynchronously
         processingStatus = 'processing';
+        const tracker = req.trackProcessing?.(transcriptId, originalname);
         processTranscript(transcriptId)
-          .then(result => {
+          .then(() => {
             console.log(`Upload processed: ${originalname}`);
+            tracker?.complete();
           })
           .catch(err => {
             console.error(`Upload processing failed: ${err.message}`);
+            tracker?.fail(err);
           });
       } catch (err) {
         console.error('Processing error:', err.message);
@@ -197,12 +199,15 @@ router.post('/notes', async (req, res) => {
     if (aiStatus.enabled) {
       try {
         processingStatus = 'processing';
+        const tracker = req.trackProcessing?.(transcriptId, filename);
         processTranscript(transcriptId)
-          .then(result => {
+          .then(() => {
             console.log(`Note processed: ${filename}`);
+            tracker?.complete();
           })
           .catch(err => {
             console.error(`Note processing failed: ${err.message}`);
+            tracker?.fail(err);
           });
       } catch (err) {
         console.error('Processing error:', err.message);
@@ -263,12 +268,15 @@ router.post('/paste', async (req, res) => {
     if (aiStatus.enabled) {
       try {
         processingStatus = 'processing';
+        const tracker = req.trackProcessing?.(transcriptId, filename);
         processTranscript(transcriptId)
-          .then(result => {
+          .then(() => {
             console.log(`Pasted transcript processed: ${filename}`);
+            tracker?.complete();
           })
           .catch(err => {
             console.error(`Pasted transcript processing failed: ${err.message}`);
+            tracker?.fail(err);
           });
       } catch (err) {
         console.error('Processing error:', err.message);

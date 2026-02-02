@@ -68,39 +68,27 @@ function FolderConfig({ label, description, icon: Icon, iconColor, folder, onFol
           <p className="text-sm text-zinc-400 mb-4">{description}</p>
 
           <div className="flex items-center gap-3">
-            <input
-              type="text"
-              value={folder}
-              onChange={(e) => onFolderChange(e.target.value)}
-              placeholder="/path/to/folder"
-              className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-zinc-200 placeholder-zinc-500 focus:outline-none focus:border-prism-blue/50"
-              readOnly={isElectron}
-            />
-            {isElectron ? (
+            <div className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-zinc-300 font-mono truncate">
+              {folder || 'Not configured'}
+            </div>
+            {isElectron && (
               <motion.button
                 onClick={onBrowse}
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
-                className="px-4 py-2.5 bg-prism-500 hover:bg-prism-600 text-white rounded-xl text-sm font-medium transition-colors"
+                className="px-4 py-2.5 bg-prism-500 hover:bg-prism-600 text-white rounded-xl text-sm font-medium transition-colors flex-shrink-0"
               >
                 Browse...
               </motion.button>
-            ) : (
-              <motion.button
-                onClick={onSave}
-                disabled={loading}
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                className="px-4 py-2.5 bg-prism-500 hover:bg-prism-600 disabled:bg-zinc-700 text-white rounded-xl text-sm font-medium transition-colors flex items-center gap-2"
-              >
-                {loading ? (
-                  <RefreshCw className="w-4 h-4 animate-spin" />
-                ) : saved ? (
-                  <><Check className="w-4 h-4" /> Saved</>
-                ) : 'Save'}
-              </motion.button>
             )}
           </div>
+
+          {/* Dev mode hint */}
+          {!isElectron && isConfigured && (
+            <p className="mt-2 text-[11px] text-zinc-600">
+              Set via WATCH_FOLDER in .env file. Restart the server to change.
+            </p>
+          )}
 
           {/* Status indicator */}
           {health && isConfigured && (

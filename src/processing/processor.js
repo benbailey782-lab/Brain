@@ -1,4 +1,4 @@
-import { getTranscript, createSegment, addSegmentTag, updateTranscript, saveTranscriptMetrics, getAllPeople, getAllDeals } from '../db/queries.js';
+import { getTranscript, createSegment, addSegmentTag, updateTranscript, saveTranscriptMetrics, getAllPeople, getAllDeals, deleteSegmentsForTranscript } from '../db/queries.js';
 
 // Phase 2 processing imports
 import { classifySegment } from './classifier.js';
@@ -241,6 +241,12 @@ export async function processTranscript(transcriptId, options = {}) {
       linkedEntities: null
     };
 
+    // Step 0: Clear existing segments (critical for reprocessing)
+    const deletedCount = deleteSegmentsForTranscript(transcript.id);
+    if (deletedCount > 0) {
+      console.log(`Cleared ${deletedCount} existing segments for reprocessing`);
+    }
+
     // Step 1: Segment the transcript
     const segments = await segmentTranscript(transcript);
     const segmentIds = [];
@@ -468,7 +474,10 @@ Respond ONLY with valid JSON, no other text:
  */
 function stubProcessTranscript(transcript) {
   console.log('Using stub processing (no AI)');
-  
+
+  // Clear existing segments before stub processing
+  deleteSegmentsForTranscript(transcript.id);
+
   const content = transcript.raw_content;
   const lines = content.split('\n').filter(l => l.trim());
   

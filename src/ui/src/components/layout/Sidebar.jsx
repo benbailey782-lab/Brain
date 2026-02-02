@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   ChevronRight,
@@ -67,6 +68,79 @@ const NAV_ITEMS = [
   { id: 'stats',       label: 'Stats',       icon: BarChart3,     section: 'data',     color: '#9890C8' },
   { id: 'settings',    label: 'Settings',    icon: Settings,      section: 'data',     color: '#C888B0' },
 ];
+
+function ProcessingIndicator() {
+  const [status, setStatus] = useState(null);
+
+  useEffect(() => {
+    let interval;
+    const poll = async () => {
+      try {
+        const res = await fetch('/api/processing/status');
+        if (res.ok) {
+          const data = await res.json();
+          setStatus(data);
+          // Poll faster when actively processing
+          if (data.activeCount > 0 && !interval) {
+            interval = setInterval(poll, 3000);
+          } else if (data.activeCount === 0 && interval) {
+            clearInterval(interval);
+            interval = null;
+          }
+        }
+      } catch (e) { /* ignore */ }
+    };
+
+    poll();
+    // Start with slower polling, speeds up when active
+    interval = setInterval(poll, 10000);
+    return () => clearInterval(interval);
+  }, []);
+
+  if (!status || (status.activeCount === 0 && status.totalProcessed === 0)) return null;
+
+  return (
+    <div className="px-4 py-3 border-t border-white/5">
+      {status.activeCount > 0 ? (
+        <div className="flex items-center gap-2.5">
+          <div className="relative w-4 h-4 flex-shrink-0">
+            <div className="absolute inset-0 rounded-full border-2 border-prism-blue/30" />
+            <div className="absolute inset-0 rounded-full border-2 border-prism-blue border-t-transparent animate-spin" />
+          </div>
+          <div className="min-w-0">
+            <div className="text-xs text-zinc-300 truncate">
+              Processing {status.activeCount} file{status.activeCount > 1 ? 's' : ''}...
+            </div>
+            <div className="text-[10px] text-zinc-500 truncate">
+              {status.active[0]?.filename}
+              {status.active[0]?.elapsed > 0 && ` — ${status.active[0].elapsed}s`}
+            </div>
+          </div>
+        </div>
+      ) : status.recentCompleted?.length > 0 ? (
+        <div className="flex items-center gap-2.5">
+          <div className="w-4 h-4 flex-shrink-0 flex items-center justify-center">
+            <div className="w-2 h-2 rounded-full bg-emerald-500" />
+          </div>
+          <div className="text-xs text-zinc-500">
+            {status.totalProcessed} file{status.totalProcessed > 1 ? 's' : ''} processed
+          </div>
+        </div>
+      ) : null}
+
+      {status.recentFailed?.length > 0 && (
+        <div className="mt-1.5 flex items-center gap-2.5">
+          <div className="w-4 h-4 flex-shrink-0 flex items-center justify-center">
+            <div className="w-2 h-2 rounded-full bg-red-500" />
+          </div>
+          <div className="text-xs text-red-400 truncate">
+            {status.recentFailed[0]?.filename} — failed
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function Sidebar({ activeView, onNavigate, collapsed, onToggleCollapse, health }) {
   const groupedItems = NAV_ITEMS.reduce((acc, item) => {
@@ -184,6 +258,9 @@ export default function Sidebar({ activeView, onNavigate, collapsed, onToggleCol
           </div>
         ))}
       </nav>
+
+      {/* Processing indicator */}
+      {!collapsed && <ProcessingIndicator />}
 
       {/* AI Status */}
       <AnimatePresence mode="wait">

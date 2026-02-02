@@ -3,7 +3,7 @@
  * Phase 2: Provides more nuanced classification of transcript segments
  */
 
-const CLASSIFICATION_PROMPT = `Classify this segment from a sales conversation.
+const CLASSIFICATION_PROMPT = `Classify this segment from a sales-related document or conversation.
 
 SEGMENT:
 {SEGMENT_CONTENT}
@@ -12,18 +12,20 @@ CONTEXT:
 Source: {SOURCE_NAME}
 Speakers: {SPEAKERS}
 
-Classify the PRIMARY knowledge type (choose the most specific one that fits):
+Classify the PRIMARY knowledge type. You MUST choose exactly one from this list:
 
-- product_knowledge: Technical details, features, capabilities, how our product works
-- process_knowledge: Internal company procedures, how things are done
+- product_knowledge: Technical details, features, capabilities, how our product works, pricing
+- process_knowledge: Internal company procedures, approval processes, how things are done
 - people_context: Information about specific people, their roles, preferences, relationships
-- sales_insight: Prospect-specific info, buying signals, objections, timeline, budget
-- advice_received: Direct guidance from colleagues or mentors
+- sales_insight: Prospect-specific info, buying signals, objections, concerns, timeline, budget, discovery questions
+- advice_received: Direct guidance, coaching, or recommendations from colleagues or mentors
 - decision_rationale: Explanations for why decisions were made
-- competitive_intel: Information specifically about competitors
-- objection: A specific objection or concern raised
-- question: A discovery or clarifying question asked
+- competitive_intel: Information specifically about competitors, their products, or positioning
 - small_talk: Casual conversation, greetings, rapport building
+- unknown: Cannot be categorized into any of the above
+
+IMPORTANT: "sales_insight" covers objections, concerns, questions, and buying signals.
+Do NOT return any type not listed above.
 
 Also identify:
 1. Sentiment: positive, negative, neutral, mixed
@@ -72,6 +74,27 @@ export async function classifySegment(content, context, callAI) {
       result.confidence = 0.5;
     }
 
+    // Map any invalid types to valid ones
+    const VALID_TYPES = new Set([
+      'product_knowledge', 'process_knowledge', 'people_context',
+      'sales_insight', 'advice_received', 'decision_rationale',
+      'competitive_intel', 'small_talk', 'unknown'
+    ]);
+
+    if (!VALID_TYPES.has(result.knowledgeType)) {
+      // Map common AI responses to valid types
+      const typeMap = {
+        'objection': 'sales_insight',
+        'question': 'sales_insight',
+        'pricing': 'product_knowledge',
+        'competition': 'competitive_intel',
+        'coaching': 'advice_received',
+        'relationship': 'people_context',
+        'procedure': 'process_knowledge'
+      };
+      result.knowledgeType = typeMap[result.knowledgeType] || 'unknown';
+    }
+
     return result;
   } catch (err) {
     console.error('Classification failed:', err.message);
@@ -106,17 +129,20 @@ export async function batchClassify(segments, callAI) {
   }
 
   // For larger batches, use batch prompt
-  const batchPrompt = `Classify each of these ${segments.length} segments from a sales conversation.
+  const batchPrompt = `Classify each of these ${segments.length} segments from a sales-related document or conversation.
 
 SEGMENTS:
 ${segments.map((s, i) => `[${i + 1}] ${s.content.substring(0, 500)}${s.content.length > 500 ? '...' : ''}`).join('\n\n')}
 
 For each segment, identify:
-1. knowledgeType (product_knowledge, process_knowledge, people_context, sales_insight, advice_received, decision_rationale, competitive_intel, objection, question, small_talk, unknown)
+1. knowledgeType (product_knowledge, process_knowledge, people_context, sales_insight, advice_received, decision_rationale, competitive_intel, small_talk, unknown)
 2. confidence (0.0 to 1.0)
 3. summary (brief)
 4. importance (high, medium, low)
 5. tags (relevant topics)
+
+IMPORTANT: "sales_insight" covers objections, concerns, questions, and buying signals.
+Do NOT return any type not in the list above.
 
 Respond ONLY with valid JSON:
 {

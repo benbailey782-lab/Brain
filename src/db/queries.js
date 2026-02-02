@@ -110,6 +110,43 @@ export function getSegmentsByTranscript(transcriptId) {
   return results;
 }
 
+export function deleteSegmentsForTranscript(transcriptId) {
+  const db = getDatabase();
+
+  // Delete tags for these segments first (if segment_tags table exists)
+  try {
+    db.prepare(`
+      DELETE FROM segment_tags WHERE segment_id IN (
+        SELECT id FROM segments WHERE transcript_id = ?
+      )
+    `).run(transcriptId);
+  } catch (e) { /* segment_tags table may not exist */ }
+
+  // Delete person_segments links
+  try {
+    db.prepare(`
+      DELETE FROM person_segments WHERE segment_id IN (
+        SELECT id FROM segments WHERE transcript_id = ?
+      )
+    `).run(transcriptId);
+  } catch (e) { /* table may not exist */ }
+
+  // Delete deal_segments links
+  try {
+    db.prepare(`
+      DELETE FROM deal_segments WHERE segment_id IN (
+        SELECT id FROM segments WHERE transcript_id = ?
+      )
+    `).run(transcriptId);
+  } catch (e) { /* table may not exist */ }
+
+  // Delete the segments themselves
+  const result = db.prepare('DELETE FROM segments WHERE transcript_id = ?').run(transcriptId);
+
+  db.close();
+  return result.changes;
+}
+
 export function getSegmentsByKnowledgeType(knowledgeType) {
   const db = getDatabase();
   const stmt = db.prepare('SELECT * FROM segments WHERE knowledge_type = ? ORDER BY created_at DESC');
@@ -1702,6 +1739,7 @@ export default {
   getSegmentsByKnowledgeType,
   getAllSegments,
   searchSegments,
+  deleteSegmentsForTranscript,
   addSegmentTag,
   getSegmentTags,
   getSegmentsByTag,
