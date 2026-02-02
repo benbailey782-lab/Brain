@@ -9,6 +9,8 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import GlassCard from './shared/GlassCard';
 import DealSummaryCard from './answers/DealSummaryCard';
+import ContactCard from './answers/ContactCard';
+import MetricsChart from './answers/MetricsChart';
 
 // Prism Logo Mark SVG component
 const PrismLogo = ({ className = "w-6 h-6" }) => (
@@ -47,6 +49,7 @@ export default function AskPanel({ onOpenCapture, onNavigate, onSelectItem }) {
   const [error, setError] = useState(null);
   const [history, setHistory] = useState([]);
   const [showHistory, setShowHistory] = useState(false);
+  const [showAllSources, setShowAllSources] = useState(false);
   const inputRef = useRef(null);
   const answerRef = useRef(null);
   const abortRef = useRef(null);
@@ -83,6 +86,7 @@ export default function AskPanel({ onOpenCapture, onNavigate, onSelectItem }) {
     setQuery('');
     setError(null);
     setCurrentAnswer({ question: q, content: '', sources: [], intent: null, followUpQuestions: [], visualizations: [], responseTimeMs: null, id: null });
+    setShowAllSources(false);
     setIsStreaming(true);
 
     const controller = new AbortController();
@@ -399,39 +403,69 @@ export default function AskPanel({ onOpenCapture, onNavigate, onSelectItem }) {
                       )}
                     </div>
 
-                    {/* Sources — clickable */}
-                    {currentAnswer?.sources?.length > 0 && (
-                      <div className="mt-3">
-                        <p className="text-xs text-zinc-500 mb-2">Sources:</p>
-                        <div className="flex flex-wrap gap-2">
-                          {currentAnswer.sources.map((source, idx) => (
-                            <SourceBadge key={idx} source={source} onClick={() => handleSourceClick(source)} />
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Rich visualizations — deal cards, MEDDPICC, etc. */}
+                    {/* Rich visualizations — deal cards, people cards, charts */}
                     {currentAnswer?.visualizations?.length > 0 && !isStreaming && (
-                      <div className="space-y-3">
-                        {/* Deal Summary Card */}
+                      <div className="space-y-2 mt-3">
+                        {/* Deal Summary Cards */}
                         {currentAnswer.visualizations
                           .filter(v => v.type === 'deal_summary')
                           .map((v, idx) => (
-                            <DealSummaryCard
-                              key={`deal-${idx}`}
-                              visualization={v}
-                              onNavigate={onNavigate}
-                            />
+                            <DealSummaryCard key={`deal-${idx}`} visualization={v} onNavigate={onNavigate} />
                           ))
                         }
 
-                        {/* MEDDPICC mini scorecard (standalone, when no deal card) */}
+                        {/* Contact Cards */}
+                        {currentAnswer.visualizations
+                          .filter(v => v.type === 'person_card')
+                          .map((v, idx) => (
+                            <ContactCard key={`person-${idx}`} visualization={v} onNavigate={onNavigate} />
+                          ))
+                        }
+
+                        {/* Metrics Charts */}
+                        {currentAnswer.visualizations
+                          .filter(v => v.type === 'metrics_chart')
+                          .map((v, idx) => (
+                            <MetricsChart key={`chart-${idx}`} visualization={v} />
+                          ))
+                        }
+
+                        {/* MEDDPICC mini (standalone fallback — only when no deal card present) */}
                         {currentAnswer.visualizations.some(v => v.type === 'meddpicc_scorecard') &&
                          !currentAnswer.visualizations.some(v => v.type === 'deal_summary') && (
-                          <div className="mt-4">
+                          <div className="mt-2">
                             <MeddpiccMini visualization={currentAnswer.visualizations.find(v => v.type === 'meddpicc_scorecard')} />
                           </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Sources — progressive disclosure */}
+                    {currentAnswer?.sources?.length > 0 && !isStreaming && (
+                      <div className="mt-3">
+                        <p className="text-xs text-zinc-500 mb-2">
+                          Sources ({currentAnswer.sources.length}):
+                        </p>
+                        <div className="flex flex-wrap gap-2">
+                          {(showAllSources ? currentAnswer.sources : currentAnswer.sources.slice(0, 3)).map((source, idx) => (
+                            <SourceBadge key={idx} source={source} onClick={() => handleSourceClick(source)} />
+                          ))}
+                        </div>
+                        {currentAnswer.sources.length > 3 && !showAllSources && (
+                          <button
+                            onClick={() => setShowAllSources(true)}
+                            className="mt-2 text-[11px] text-zinc-500 hover:text-zinc-300 transition-colors"
+                          >
+                            + {currentAnswer.sources.length - 3} more sources
+                          </button>
+                        )}
+                        {showAllSources && currentAnswer.sources.length > 3 && (
+                          <button
+                            onClick={() => setShowAllSources(false)}
+                            className="mt-2 text-[11px] text-zinc-500 hover:text-zinc-300 transition-colors"
+                          >
+                            Show fewer
+                          </button>
                         )}
                       </div>
                     )}

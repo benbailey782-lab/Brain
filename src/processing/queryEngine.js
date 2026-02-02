@@ -362,9 +362,44 @@ function buildSynthesisPrompt(query, intent, context, sources) {
     }
   }
 
-  // Cap context to roughly 1500 tokens (~6000 chars) for faster inference
-  if (contextText.length > 6000) {
-    contextText = contextText.substring(0, 6000) + '\n...[context truncated]';
+  // Smart context truncation — prioritize structured data, trim segments if needed
+  const MAX_CONTEXT_CHARS = 12000;
+  if (contextText.length > MAX_CONTEXT_CHARS) {
+    // Split context into structured (deals, MEDDPICC, people) and bulk (segments, transcripts, patterns)
+    const sections = contextText.split(/\n## /);
+    const header = sections[0] || '';
+    const structured = [];
+    const bulk = [];
+
+    for (let i = 1; i < sections.length; i++) {
+      const section = '## ' + sections[i];
+      if (section.startsWith('## Active Deals') || section.startsWith('## MEDDPICC') || section.startsWith('## Key Contacts') || section.startsWith('## Prospects')) {
+        structured.push(section);
+      } else {
+        bulk.push(section);
+      }
+    }
+
+    // Always keep structured sections in full
+    let result = header + '\n' + structured.join('\n');
+    let remaining = MAX_CONTEXT_CHARS - result.length;
+
+    // Distribute remaining budget across bulk sections
+    for (const section of bulk) {
+      if (remaining <= 0) {
+        result += '\n...[additional context truncated for length]';
+        break;
+      }
+      if (section.length <= remaining) {
+        result += '\n' + section;
+        remaining -= section.length;
+      } else {
+        result += '\n' + section.substring(0, remaining) + '\n...[section truncated]';
+        remaining = 0;
+      }
+    }
+
+    contextText = result;
   }
 
   const intentInstructions = {
@@ -492,6 +527,27 @@ function extractVisualizations(intent, context) {
     }
   }
 
+  // Coaching metrics chart — for coaching queries with transcript metrics
+  if (intent.intent === 'coaching' && context.transcripts.length > 0) {
+    const metricsData = context.transcripts
+      .filter(t => t.talk_ratio != null)
+      .slice(0, 10)
+      .map(t => ({
+        label: t.filename ? t.filename.replace(/\.[^.]+$/, '').substring(0, 15) : 'Call',
+        talk_ratio: Math.round((t.talk_ratio || 0) * 100),
+        strong_moments: Array.isArray(t.strong_moments) ? t.strong_moments.length : (t.strong_moments || 0)
+      }));
+
+    if (metricsData.length >= 2) {
+      visualizations.push({
+        type: 'metrics_chart',
+        metrics: metricsData,
+        chartType: 'bar',
+        title: 'Call Performance'
+      });
+    }
+  }
+
   return visualizations;
 }
 
@@ -510,7 +566,7 @@ export async function processQuery(query, callAI) {
 
     // Step 3: Build and send synthesis prompt
     const synthesisPrompt = buildSynthesisPrompt(query, intent, context, sources);
-    const answer = await callAI(synthesisPrompt, { maxTokens: 1500, temperature: 0.7 });
+    const answer = await callAI(synthesisPrompt, { maxTokens: 4096, temperature: 0.7 });
 
     // Step 4: Generate follow-ups and extract visualizations
     const followUpQuestions = generateFollowUps(intent, context);
@@ -598,7 +654,7 @@ export async function* processQueryStream(query, callAI, streamAI) {
     const synthesisPrompt = buildSynthesisPrompt(query, intent, context, sources);
     let fullAnswer = '';
 
-    for await (const token of streamAI(synthesisPrompt, { maxTokens: 1500, temperature: 0.7 })) {
+    for await (const token of streamAI(synthesisPrompt, { maxTokens: 4096, temperature: 0.7 })) {
       fullAnswer += token;
       yield { type: 'token', token };
     }
